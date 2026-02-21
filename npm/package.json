@@ -1,0 +1,31 @@
+{
+  "name": "@intuware/intu-dev",
+  "version": "0.1.1",
+  "description": "Git-native healthcare interoperability engine CLI",
+  "bin": {
+    "intu": "./bin/intu.js"
+  },
+  "files": [
+    "bin",
+    "platform"
+  ],
+  "scripts": {
+    "build": "node build.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "healthcare",
+    "interoperability",
+    "hl7",
+    "fhir",
+    "integration"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/intuware/intu-dev"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -22,23 +22,73 @@ func (f *Factory) CreateSource(listenerCfg config.ListenerConfig) (SourceConnect
 			return nil, fmt.Errorf("http listener config is nil")
 		}
 		return NewHTTPSource(listenerCfg.HTTP, f.logger), nil
+
 	case "tcp":
 		if listenerCfg.TCP == nil {
 			return nil, fmt.Errorf("tcp listener config is nil")
 		}
 		return NewTCPSource(listenerCfg.TCP, f.logger), nil
+
 	case "file":
 		if listenerCfg.File == nil {
 			return nil, fmt.Errorf("file listener config is nil")
 		}
 		return NewFileSource(listenerCfg.File, f.logger), nil
+
 	case "channel":
 		if listenerCfg.Channel == nil {
 			return nil, fmt.Errorf("channel listener config is nil")
 		}
 		return NewChannelSource(listenerCfg.Channel, f.logger), nil
-	case "sftp", "database", "kafka", "email", "dicom", "soap", "fhir", "ihe":
-		return NewStubSource(listenerCfg.Type, f.logger), nil
+
+	case "sftp":
+		if listenerCfg.SFTP == nil {
+			return nil, fmt.Errorf("sftp listener config is nil")
+		}
+		return NewSFTPSource(listenerCfg.SFTP, f.logger), nil
+
+	case "database":
+		if listenerCfg.Database == nil {
+			return nil, fmt.Errorf("database listener config is nil")
+		}
+		return NewDatabaseSource(listenerCfg.Database, f.logger), nil
+
+	case "kafka":
+		if listenerCfg.Kafka == nil {
+			return nil, fmt.Errorf("kafka listener config is nil")
+		}
+		return NewKafkaSource(listenerCfg.Kafka, f.logger), nil
+
+	case "email":
+		if listenerCfg.Email == nil {
+			return nil, fmt.Errorf("email listener config is nil")
+		}
+		return NewEmailSource(listenerCfg.Email, f.logger), nil
+
+	case "dicom":
+		if listenerCfg.DICOM == nil {
+			return nil, fmt.Errorf("dicom listener config is nil")
+		}
+		return NewDICOMSource(listenerCfg.DICOM, f.logger), nil
+
+	case "soap":
+		if listenerCfg.SOAP == nil {
+			return nil, fmt.Errorf("soap listener config is nil")
+		}
+		return NewSOAPSource(listenerCfg.SOAP, f.logger), nil
+
+	case "fhir":
+		if listenerCfg.FHIR == nil {
+			return nil, fmt.Errorf("fhir listener config is nil")
+		}
+		return NewFHIRSource(listenerCfg.FHIR, f.logger), nil
+
+	case "ihe":
+		if listenerCfg.IHE == nil {
+			return nil, fmt.Errorf("ihe listener config is nil")
+		}
+		return NewIHESource(listenerCfg.IHE, f.logger), nil
+
 	default:
 		return nil, fmt.Errorf("unsupported source type: %s", listenerCfg.Type)
 	}

@@ -82,7 +82,7 @@
             '<path d="M50 15C50 15 52 30 65 32C52 34 50 49 50 49C50 49 48 34 35 32C48 30 50 15 50 15Z" fill="white"/>' +
             '<rect x="42" y="55" width="16" height="30" rx="5" fill="white"/>' +
           '</svg>' +
-          'intu<span>.dev</span>' +
+          '<span>intu<span>.dev</span></span>' +
         '</a>' +
       '</div>' +
       '<div class="nav-links">' +

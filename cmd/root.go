@@ -7,18 +7,24 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var rootOpts struct {
-	logLevel string
-}
+var (
+	// Set via -ldflags at build time: go build -ldflags "-X github.com/intuware/intu/cmd.Version=1.0.0"
+	Version = "dev"
 
-var rootCmd = &cobra.Command{
-	Use:   "intu",
-	Short: "intu is a Git-native healthcare interoperability framework",
-	Long: "intu is a production-grade distributed integration framework for health-tech teams " +
-		"to run within their own infrastructure.",
-	SilenceUsage:  true,
-	SilenceErrors: true,
-}
+	rootOpts struct {
+		logLevel string
+	}
+
+	rootCmd = &cobra.Command{
+		Use:     "intu",
+		Short:   "intu is a Git-native healthcare interoperability framework",
+		Long:    "A Git-native, AI-friendly healthcare interoperability framework that lets teams " +
+			"build, version, and deploy integration pipelines using YAML configuration and TypeScript transformers.",
+		Version:       Version,
+		SilenceUsage:  true,
+		SilenceErrors: true,
+	}
+)
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&rootOpts.logLevel, "log-level", "info", "Structured log level (debug|info|warn|error)")

@@ -6,6 +6,8 @@ const path = require("path");
 
 const rootDir = path.join(__dirname, "..");
 const platformDir = path.join(__dirname, "platform");
+const pkg = require("./package.json");
+const version = pkg.version;
 
 const targets = [
   { goos: "darwin", goarch: "arm64", dir: "darwin-arm64" },
@@ -29,9 +31,9 @@ for (const { goos, goarch, dir } of targets) {
   const ext = goos === "windows" ? ".exe" : "";
   const output = path.join(outDir, `intu${ext}`);
 
-  console.log(`Building ${goos}/${goarch} -> ${dir}/intu${ext}`);
+  console.log(`Building ${goos}/${goarch} -> ${dir}/intu${ext} (v${version})`);
   execSync(
-    `go build -o "${output}" .`,
+    `go build -ldflags "-X github.com/intuware/intu/cmd.Version=${version}" -o "${output}" .`,
     {
       cwd: rootDir,
       env: { ...process.env, GOOS: goos, GOARCH: goarch, CGO_ENABLED: "0" },

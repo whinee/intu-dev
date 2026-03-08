@@ -1,11 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"time"
 
+	"github.com/intuware/intu/internal/connector"
 	"github.com/intuware/intu/internal/message"
+	"github.com/intuware/intu/internal/runtime"
 	"github.com/intuware/intu/internal/storage"
 	"github.com/intuware/intu/pkg/config"
 	"github.com/intuware/intu/pkg/logging"
@@ -66,31 +69,26 @@ func newReprocessByIDCmd() *cobra.Command {
 				return nil
 			}
 
-			newMsg := rebuildMessage(record)
+			ctx := context.Background()
+			factory := connector.NewFactory(logger)
+			engine := runtime.NewDefaultEngine(dir, cfg, factory, logger)
+			engine.SetMessageStore(store)
 
-			reprocessRecord := &storage.MessageRecord{
-				ID:            newMsg.ID,
-				CorrelationID: newMsg.CorrelationID,
-				ChannelID:     channelID,
-				Stage:         "reprocessed",
-				Content:       newMsg.Raw,
-				Status:        "REPROCESSED",
-				Timestamp:     time.Now(),
-				Metadata: map[string]any{
-					"original_message_id": record.ID,
-					"original_status":     record.Status,
-					"original_stage":      record.Stage,
-					"reprocessed_at":      time.Now().Format(time.RFC3339),
-				},
+			if err := engine.InitRuntime(ctx); err != nil {
+				return fmt.Errorf("init runtime: %w", err)
 			}
-			if err := store.Save(reprocessRecord); err != nil {
-				logger.Warn("failed to save reprocess record", "error", err)
+			defer engine.CloseRuntime()
+
+			msg := rebuildMessage(record)
+
+			if err := engine.ReprocessMessage(ctx, channelID, msg); err != nil {
+				return fmt.Errorf("reprocess failed: %w", err)
 			}
 
 			data, _ := json.MarshalIndent(map[string]any{
 				"reprocessed":         true,
 				"original_message_id": record.ID,
-				"new_message_id":      newMsg.ID,
+				"new_message_id":      msg.ID,
 				"channel":             channelID,
 				"timestamp":           time.Now().Format(time.RFC3339),
 			}, "", "  ")
@@ -98,7 +96,7 @@ func newReprocessByIDCmd() *cobra.Command {
 
 			logger.Info("message reprocessed",
 				"originalID", record.ID,
-				"newID", newMsg.ID,
+				"newID", msg.ID,
 				"channel", channelID,
 			)
 
@@ -172,26 +170,21 @@ func newReprocessBatchCmd() *cobra.Command {
 				return nil
 			}
 
+			ctx := context.Background()
+			factory := connector.NewFactory(logger)
+			engine := runtime.NewDefaultEngine(dir, cfg, factory, logger)
+			engine.SetMessageStore(store)
+
+			if err := engine.InitRuntime(ctx); err != nil {
+				return fmt.Errorf("init runtime: %w", err)
+			}
+			defer engine.CloseRuntime()
+
 			reprocessed := 0
 			for _, record := range records {
-				newMsg := rebuildMessage(record)
-
-				reprocessRecord := &storage.MessageRecord{
-					ID:            newMsg.ID,
-					CorrelationID: newMsg.CorrelationID,
-					ChannelID:     channelID,
-					Stage:         "reprocessed",
-					Content:       newMsg.Raw,
-					Status:        "REPROCESSED",
-					Timestamp:     time.Now(),
-					Metadata: map[string]any{
-						"original_message_id": record.ID,
-						"original_status":     record.Status,
-						"reprocessed_at":      time.Now().Format(time.RFC3339),
-					},
-				}
-				if err := store.Save(reprocessRecord); err != nil {
-					logger.Warn("failed to save reprocess record", "messageID", record.ID, "error", err)
+				msg := rebuildMessage(record)
+				if err := engine.ReprocessMessage(ctx, channelID, msg); err != nil {
+					logger.Warn("reprocess failed", "messageID", record.ID, "error", err)
 					continue
 				}
 				reprocessed++

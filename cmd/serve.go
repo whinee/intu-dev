@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -14,6 +16,8 @@ import (
 	"github.com/intuware/intu/internal/auth"
 	"github.com/intuware/intu/internal/cluster"
 	"github.com/intuware/intu/internal/connector"
+	"github.com/intuware/intu/internal/dashboard"
+	"github.com/intuware/intu/internal/message"
 	"github.com/intuware/intu/internal/observability"
 	"github.com/intuware/intu/internal/runtime"
 	"github.com/intuware/intu/internal/storage"
@@ -123,6 +127,30 @@ func newServeCmd() *cobra.Command {
 			}
 			logger.Info("message store initialized", "driver", storeDriver, "mode", storeMode)
 
+			// --- Audit ---
+			var auditLogger *auth.AuditLogger
+			if cfg.Audit != nil && cfg.Audit.Enabled {
+				auditLogger = auth.NewAuditLogger(cfg.Audit, logger)
+
+				var auditStore auth.AuditStore
+				switch {
+				case cfg.Audit.Destination == "postgres" && cfg.Runtime.Storage.PostgresDSN != "":
+					pgStore, pgErr := auth.NewPostgresAuditStore(cfg.Runtime.Storage.PostgresDSN, "intu_")
+					if pgErr != nil {
+						logger.Warn("postgres audit store init failed, using memory", "error", pgErr)
+						auditStore = auth.NewMemoryAuditStore()
+					} else {
+						auditStore = pgStore
+						defer pgStore.Close()
+					}
+				default:
+					auditStore = auth.NewMemoryAuditStore()
+				}
+
+				auditLogger.SetStore(auditStore)
+				logger.Info("audit logger initialized", "destination", cfg.Audit.Destination)
+			}
+
 			factory := connector.NewFactory(logger)
 			engine := runtime.NewDefaultEngine(dir, cfg, factory, logger)
 			engine.SetMessageStore(store)
@@ -199,6 +227,80 @@ func newServeCmd() *cobra.Command {
 				return fmt.Errorf("engine start: %w", err)
 			}
 
+			if err := engine.WatchChannels(ctx); err != nil {
+				logger.Warn("channel hot-reload not available", "error", err)
+			}
+
+			// --- Dashboard (embedded in serve) ---
+			var dashSrv *dashboard.Server
+			dashCfg := cfg.Dashboard
+			if dashCfg == nil {
+				dashCfg = &config.DashboardConfig{
+					Enabled: true,
+					Port:    3000,
+					Auth: &config.DashboardAuthConfig{
+						Provider: "basic",
+						Username: "admin",
+						Password: "admin",
+					},
+				}
+			}
+
+			if dashCfg.Enabled {
+				port := dashCfg.Port
+				if port == 0 {
+					port = 3000
+				}
+
+				authMw := buildDashboardAuth(dashCfg, cfg, logger)
+
+				channelsDir := filepath.Join(dir, cfg.ChannelsDir)
+
+				reprocessFn := func(ctx context.Context, channelID string, rawContent []byte) error {
+					msg := message.New(channelID, rawContent)
+					msg.Metadata["reprocessed"] = true
+					return engine.ReprocessMessage(ctx, channelID, msg)
+				}
+
+				var rbac *auth.RBACManager
+				if len(cfg.Roles) > 0 {
+					rbac = auth.NewRBACManager(cfg.Roles)
+				}
+
+				dashSrv = dashboard.NewServer(&dashboard.ServerConfig{
+					Config:         cfg,
+					ChannelsDir:    channelsDir,
+					Store:          store,
+					Metrics:        observability.Global(),
+					Logger:         logger,
+					RBAC:           rbac,
+					AuditLogger:    auditLogger,
+					AuthMiddleware: authMw,
+					ReprocessFunc:  reprocessFn,
+					Port:           port,
+				})
+
+				dashErrCh := make(chan error, 1)
+				go func() {
+					addr := fmt.Sprintf(":%d", port)
+					if err := dashSrv.Start(addr); err != nil && err != http.ErrServerClosed {
+						dashErrCh <- err
+					}
+				}()
+
+				select {
+				case dashErr := <-dashErrCh:
+					logger.Error("dashboard failed to start", "error", dashErr)
+					dashSrv = nil
+				case <-time.After(500 * time.Millisecond):
+					authProvider := "basic"
+					if dashCfg.Auth != nil && dashCfg.Auth.Provider != "" {
+						authProvider = dashCfg.Auth.Provider
+					}
+					fmt.Fprintf(cmd.OutOrStdout(), "Dashboard running on http://localhost:%d (auth: %s)\n", port, authProvider)
+				}
+			}
+
 			fmt.Fprintln(cmd.OutOrStdout(), "intu engine running. Press Ctrl+C to stop.")
 
 			sigCh := make(chan os.Signal, 1)
@@ -207,6 +309,14 @@ func newServeCmd() *cobra.Command {
 
 			logger.Info("shutdown signal received")
 			cancel()
+
+			if dashSrv != nil {
+				shutCtx, shutCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				if err := dashSrv.Stop(shutCtx); err != nil {
+					logger.Error("dashboard stop error", "error", err)
+				}
+				shutCancel()
+			}
 
 			if err := engine.Stop(context.Background()); err != nil {
 				logger.Error("engine stop error", "error", err)
@@ -226,6 +336,12 @@ func newServeCmd() *cobra.Command {
 				}
 			}
 
+			if auditLogger != nil {
+				if err := auditLogger.Close(); err != nil {
+					logger.Error("audit logger close error", "error", err)
+				}
+			}
+
 			fmt.Fprintln(cmd.OutOrStdout(), "intu engine stopped.")
 			return nil
 		},
@@ -234,4 +350,57 @@ func newServeCmd() *cobra.Command {
 	cmd.Flags().StringVar(&dir, "dir", ".", "Project root directory")
 	cmd.Flags().StringVar(&profile, "profile", "dev", "Config profile")
 	return cmd
+}
+
+func buildDashboardAuth(dashCfg *config.DashboardConfig, cfg *config.Config, logger *slog.Logger) func(http.Handler) http.Handler {
+	if dashCfg.Auth == nil {
+		return dashboard.BasicAuthMiddleware("admin", "admin")
+	}
+
+	switch dashCfg.Auth.Provider {
+	case "basic":
+		user := dashCfg.Auth.Username
+		pass := dashCfg.Auth.Password
+		if user == "" {
+			user = "admin"
+		}
+		if pass == "" {
+			pass = "admin"
+		}
+		return dashboard.BasicAuthMiddleware(user, pass)
+
+	case "ldap":
+		if cfg.AccessControl != nil && cfg.AccessControl.LDAP != nil {
+			var rbac *auth.RBACManager
+			if len(cfg.Roles) > 0 {
+				rbac = auth.NewRBACManager(cfg.Roles)
+			}
+			ldapProvider := auth.NewLDAPProvider(cfg.AccessControl.LDAP, rbac, logger)
+			return auth.NewLDAPAuthMiddleware(ldapProvider)
+		}
+		logger.Warn("dashboard auth set to ldap but no LDAP config found, falling back to basic auth")
+		return dashboard.BasicAuthMiddleware("admin", "admin")
+
+	case "oidc":
+		if cfg.AccessControl != nil && cfg.AccessControl.OIDC != nil {
+			var rbac *auth.RBACManager
+			if len(cfg.Roles) > 0 {
+				rbac = auth.NewRBACManager(cfg.Roles)
+			}
+			oidcProvider, err := auth.NewOIDCProvider(cfg.AccessControl.OIDC, rbac, logger)
+			if err != nil {
+				logger.Warn("OIDC provider init failed, falling back to basic auth", "error", err)
+				return dashboard.BasicAuthMiddleware("admin", "admin")
+			}
+			return auth.NewOIDCAuthMiddleware(oidcProvider)
+		}
+		logger.Warn("dashboard auth set to oidc but no OIDC config found, falling back to basic auth")
+		return dashboard.BasicAuthMiddleware("admin", "admin")
+
+	case "none":
+		return nil
+
+	default:
+		return dashboard.BasicAuthMiddleware("admin", "admin")
+	}
 }

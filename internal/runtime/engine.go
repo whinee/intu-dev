@@ -14,6 +14,7 @@ import (
 	"github.com/intuware/intu/internal/alerting"
 	"github.com/intuware/intu/internal/cluster"
 	"github.com/intuware/intu/internal/connector"
+	"github.com/intuware/intu/internal/message"
 	"github.com/intuware/intu/internal/observability"
 	"github.com/intuware/intu/internal/storage"
 	"github.com/intuware/intu/pkg/config"
@@ -468,6 +469,70 @@ func (e *DefaultEngine) preloadChannelScripts(channelDir string, cfg *config.Cha
 		preload(d.Filter)
 		preload(d.ResponseTransformer)
 	}
+}
+
+func (e *DefaultEngine) InitRuntime(ctx context.Context) error {
+	e.codeTemplates = NewCodeTemplateLoader(e.rootDir, e.logger)
+	if e.cfg.CodeTemplates != nil {
+		for _, lib := range e.cfg.CodeTemplates {
+			if err := e.codeTemplates.LoadLibrary(lib.Name, lib.Directory); err != nil {
+				e.logger.Warn("failed to load code template library", "name", lib.Name, "error", err)
+			}
+		}
+	}
+	return e.initJSRunner()
+}
+
+func (e *DefaultEngine) CloseRuntime() error {
+	if e.jsRunner != nil {
+		return e.jsRunner.Close()
+	}
+	return nil
+}
+
+func (e *DefaultEngine) ReprocessMessage(ctx context.Context, channelID string, msg *message.Message) error {
+	if cr, ok := e.channels[channelID]; ok {
+		return cr.handleMessage(ctx, msg)
+	}
+
+	channelDir := e.findChannelDir(channelID)
+	if channelDir == "" {
+		return fmt.Errorf("channel %q not found", channelID)
+	}
+
+	chCfg, err := config.LoadChannelConfig(channelDir)
+	if err != nil {
+		return fmt.Errorf("load channel config %s: %w", channelID, err)
+	}
+
+	cr, err := e.buildChannelRuntime(channelDir, chCfg)
+	if err != nil {
+		return fmt.Errorf("build channel runtime %s: %w", channelID, err)
+	}
+
+	return cr.handleMessage(ctx, msg)
+}
+
+func (e *DefaultEngine) findChannelDir(channelID string) string {
+	channelsDir := filepath.Join(e.rootDir, e.cfg.ChannelsDir)
+	entries, err := os.ReadDir(channelsDir)
+	if err != nil {
+		return ""
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		dir := filepath.Join(channelsDir, entry.Name())
+		chCfg, err := config.LoadChannelConfig(dir)
+		if err != nil {
+			continue
+		}
+		if chCfg.ID == channelID {
+			return dir
+		}
+	}
+	return ""
 }
 
 func (e *DefaultEngine) WatchChannels(ctx context.Context) error {

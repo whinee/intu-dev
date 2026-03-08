@@ -2,9 +2,10 @@ package channel
 
 import (
 	"fmt"
+	"io"
+	"log/slog"
 
 	"github.com/intuware/intu/internal/bootstrap"
-	"github.com/intuware/intu/pkg/logging"
 	"github.com/spf13/cobra"
 )
 
@@ -23,17 +24,15 @@ func newAddCmd(logLevel *string) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			channelName := args[0]
-			logger := logging.New(*logLevel, nil)
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			scaffolder := bootstrap.NewScaffolder(logger)
 
-			result, err := scaffolder.BootstrapChannel(opts.dir, channelName, opts.force)
+			_, err := scaffolder.BootstrapChannel(opts.dir, channelName, opts.force)
 			if err != nil {
 				return err
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(),
-				"Channel %s added in %s (created: %d, overwritten: %d, skipped: %d)\n",
-				channelName, result.Root, result.Created, result.Overwritten, result.Skipped)
+			fmt.Fprintf(cmd.OutOrStdout(), "Channel created: %s\n", channelName)
 			return nil
 		},
 	}

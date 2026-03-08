@@ -18,6 +18,7 @@ type Config struct {
 	Cluster        *ClusterConfig           `mapstructure:"cluster"`
 	Global         *GlobalConfig            `mapstructure:"global"`
 	Tenancy        *TenancyConfig           `mapstructure:"tenancy"`
+	Dashboard      *DashboardConfig         `mapstructure:"dashboard"`
 	CodeTemplates  []CodeTemplateLibraryConfig `mapstructure:"code_templates"`
 }
 
@@ -406,6 +407,18 @@ type TenancyConfig struct {
 	Mode         string `mapstructure:"mode"`
 	Isolation    string `mapstructure:"isolation"`
 	TenantHeader string `mapstructure:"tenant_header"`
+}
+
+type DashboardConfig struct {
+	Enabled bool                 `mapstructure:"enabled"`
+	Port    int                  `mapstructure:"port"`
+	Auth    *DashboardAuthConfig `mapstructure:"auth"`
+}
+
+type DashboardAuthConfig struct {
+	Provider string `mapstructure:"provider"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
 }
 
 type LoggingConfig struct {

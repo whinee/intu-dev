@@ -2,9 +2,10 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+	"log/slog"
 
 	"github.com/intuware/intu/internal/bootstrap"
-	"github.com/intuware/intu/pkg/logging"
 	"github.com/spf13/cobra"
 )
 
@@ -21,17 +22,15 @@ func newCCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			channelName := args[0]
-			logger := logging.New(rootOpts.logLevel, nil)
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			scaffolder := bootstrap.NewScaffolder(logger)
 
-			result, err := scaffolder.BootstrapChannel(dir, channelName, force)
+			_, err := scaffolder.BootstrapChannel(dir, channelName, force)
 			if err != nil {
 				return err
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(),
-				"intu c completed in %s (created: %d, overwritten: %d, skipped: %d)\n",
-				result.Root, result.Created, result.Overwritten, result.Skipped)
+			fmt.Fprintf(cmd.OutOrStdout(), "Channel created: %s\n", channelName)
 			return nil
 		},
 	}

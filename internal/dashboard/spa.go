@@ -82,6 +82,7 @@ const dashboardSPA = `<!DOCTYPE html>
       <button class="active" onclick="showPage('channels')">Channels</button>
       <button onclick="showPage('messages')">Messages</button>
       <button onclick="showPage('metrics')">Metrics</button>
+      <a href="/logout" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);padding:6px 16px;border-radius:6px;cursor:pointer;font-size:0.85rem;text-decoration:none;transition:all 0.2s;display:inline-flex;align-items:center;" onmouseover="this.style.borderColor='var(--error)';this.style.color='var(--error)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">Logout</a>
     </nav>
   </div>
 

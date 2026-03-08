@@ -2,9 +2,10 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+	"log/slog"
 
 	"github.com/intuware/intu/internal/bootstrap"
-	"github.com/intuware/intu/pkg/logging"
 	"github.com/spf13/cobra"
 )
 
@@ -21,7 +22,7 @@ func newInitCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectName := args[0]
-			logger := logging.New(rootOpts.logLevel, nil)
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			scaffolder := bootstrap.NewScaffolder(logger)
 
 			result, err := scaffolder.BootstrapProject(dir, projectName, force)
@@ -29,9 +30,14 @@ func newInitCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(),
-				"intu init completed in %s (created: %d, overwritten: %d, skipped: %d)\n",
-				result.Root, result.Created, result.Overwritten, result.Skipped)
+			fmt.Fprintf(cmd.OutOrStdout(), "Project created: %s (1 channel)\n", projectName)
+			fmt.Fprintf(cmd.OutOrStdout(), "\n")
+			fmt.Fprintf(cmd.OutOrStdout(), "  cd %s\n", result.Root)
+			fmt.Fprintf(cmd.OutOrStdout(), "  npm install\n")
+			fmt.Fprintf(cmd.OutOrStdout(), "  intu build --dir .\n")
+			fmt.Fprintf(cmd.OutOrStdout(), "  intu serve --dir .\n")
+			fmt.Fprintf(cmd.OutOrStdout(), "\n")
+			fmt.Fprintf(cmd.OutOrStdout(), "Dashboard: http://localhost:3000 (admin / admin)\n")
 			return nil
 		},
 	}

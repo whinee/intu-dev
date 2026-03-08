@@ -57,7 +57,7 @@ func (s *Scaffolder) BootstrapProject(dir, projectName string, force bool) (*Res
 			result.Skipped++
 		}
 
-		s.logger.Info("processed file", "path", absPath, "status", status)
+		s.logger.Debug("processed file", "path", absPath, "status", status)
 	}
 
 	return result, nil
@@ -90,7 +90,7 @@ func (s *Scaffolder) BootstrapChannel(root, channelName string, force bool) (*Re
 			result.Skipped++
 		}
 
-		s.logger.Info("processed file", "path", absPath, "status", status)
+		s.logger.Debug("processed file", "path", absPath, "status", status)
 	}
 
 	return result, nil

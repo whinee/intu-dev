@@ -2,9 +2,12 @@ package dashboard
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -18,6 +21,8 @@ import (
 	"github.com/intuware/intu/pkg/config"
 )
 
+type ReprocessFunc func(ctx context.Context, channelID string, rawContent []byte) error
+
 type Server struct {
 	cfg         *config.Config
 	channelsDir string
@@ -27,20 +32,22 @@ type Server struct {
 	rbac        *auth.RBACManager
 	auditLogger *auth.AuditLogger
 	authMw      func(http.Handler) http.Handler
+	reprocessFn ReprocessFunc
 	server      *http.Server
 	mu          sync.RWMutex
 }
 
 type ServerConfig struct {
-	Config      *config.Config
-	ChannelsDir string
-	Store       storage.MessageStore
-	Metrics     *observability.Metrics
-	Logger      *slog.Logger
-	RBAC        *auth.RBACManager
-	AuditLogger *auth.AuditLogger
+	Config         *config.Config
+	ChannelsDir    string
+	Store          storage.MessageStore
+	Metrics        *observability.Metrics
+	Logger         *slog.Logger
+	RBAC           *auth.RBACManager
+	AuditLogger    *auth.AuditLogger
 	AuthMiddleware func(http.Handler) http.Handler
-	Port        int
+	ReprocessFunc  ReprocessFunc
+	Port           int
 }
 
 func NewServer(scfg *ServerConfig) *Server {
@@ -53,6 +60,7 @@ func NewServer(scfg *ServerConfig) *Server {
 		rbac:        scfg.RBAC,
 		auditLogger: scfg.AuditLogger,
 		authMw:      scfg.AuthMiddleware,
+		reprocessFn: scfg.ReprocessFunc,
 	}
 
 	if s.metrics == nil {
@@ -89,8 +97,12 @@ func (s *Server) Start(addr string) error {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	s.logger.Info("dashboard server starting", "addr", addr)
-	return s.server.ListenAndServe()
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("dashboard listen %s: %w", addr, err)
+	}
+	s.logger.Info("dashboard listening", "addr", ln.Addr().String())
+	return s.server.Serve(ln)
 }
 
 func (s *Server) Stop(ctx context.Context) error {
@@ -255,22 +267,17 @@ func (s *Server) handleReprocess(w http.ResponseWriter, r *http.Request, msgID s
 		return
 	}
 
-	reprocessRecord := &storage.MessageRecord{
-		ID:            fmt.Sprintf("rp-%s-%d", msgID, time.Now().UnixMilli()),
-		CorrelationID: record.CorrelationID,
-		ChannelID:     record.ChannelID,
-		Stage:         "reprocessed",
-		Content:       record.Content,
-		Status:        "REPROCESSED",
-		Timestamp:     time.Now(),
-		Metadata: map[string]any{
-			"original_message_id": record.ID,
-			"original_status":     record.Status,
-			"reprocessed_at":      time.Now().Format(time.RFC3339),
-		},
+	if s.reprocessFn == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "reprocessing not available (engine not running)"})
+		return
 	}
 
-	if err := s.store.Save(reprocessRecord); err != nil {
+	if err := s.reprocessFn(r.Context(), record.ChannelID, record.Content); err != nil {
+		s.logger.Error("reprocess failed via dashboard",
+			"originalID", msgID,
+			"channel", record.ChannelID,
+			"error", err,
+		)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
@@ -278,21 +285,18 @@ func (s *Server) handleReprocess(w http.ResponseWriter, r *http.Request, msgID s
 	if s.auditLogger != nil {
 		s.auditLogger.Log("message.reprocess", "dashboard", map[string]any{
 			"original_id": msgID,
-			"new_id":      reprocessRecord.ID,
 			"channel":     record.ChannelID,
 		})
 	}
 
 	s.logger.Info("message reprocessed via dashboard",
 		"originalID", msgID,
-		"newID", reprocessRecord.ID,
 		"channel", record.ChannelID,
 	)
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"reprocessed":         true,
 		"original_message_id": msgID,
-		"new_message_id":      reprocessRecord.ID,
 		"channel":             record.ChannelID,
 	})
 }
@@ -469,6 +473,208 @@ func setChannelEnabledDashboard(channelsDir, channelID string, enabled bool) err
 
 	return os.WriteFile(path, []byte(content), 0o644)
 }
+
+type FormAuth struct {
+	username string
+	password string
+	sessions sync.Map
+}
+
+func NewFormAuth(username, password string) *FormAuth {
+	return &FormAuth{username: username, password: password}
+}
+
+func BasicAuthMiddleware(username, password string) func(http.Handler) http.Handler {
+	fa := NewFormAuth(username, password)
+	return fa.Middleware()
+}
+
+func (fa *FormAuth) Middleware() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/login" {
+				switch r.Method {
+				case http.MethodGet:
+					fa.serveLoginPage(w, r, "")
+				case http.MethodPost:
+					fa.handleLogin(w, r)
+				default:
+					http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+				}
+				return
+			}
+
+			if r.URL.Path == "/logout" {
+				fa.handleLogout(w, r)
+				return
+			}
+
+			if strings.HasPrefix(r.URL.Path, "/api/") {
+				u, p, ok := r.BasicAuth()
+				if ok && u == fa.username && p == fa.password {
+					r.Header.Set("X-Auth-User", u)
+					next.ServeHTTP(w, r)
+					return
+				}
+
+				cookie, err := r.Cookie("intu_session")
+				if err == nil {
+					if user, ok := fa.sessions.Load(cookie.Value); ok {
+						r.Header.Set("X-Auth-User", user.(string))
+						next.ServeHTTP(w, r)
+						return
+					}
+				}
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
+				json.NewEncoder(w).Encode(map[string]string{"error": "authentication required"})
+				return
+			}
+
+			cookie, err := r.Cookie("intu_session")
+			if err == nil {
+				if user, ok := fa.sessions.Load(cookie.Value); ok {
+					r.Header.Set("X-Auth-User", user.(string))
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+
+			http.Redirect(w, r, "/login", http.StatusFound)
+		})
+	}
+}
+
+func (fa *FormAuth) handleLogin(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		fa.serveLoginPage(w, r, "Invalid form submission")
+		return
+	}
+
+	user := r.FormValue("username")
+	pass := r.FormValue("password")
+
+	if user != fa.username || pass != fa.password {
+		fa.serveLoginPage(w, r, "Invalid username or password")
+		return
+	}
+
+	token := generateSessionToken()
+	fa.sessions.Store(token, user)
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "intu_session",
+		Value:    token,
+		Path:     "/",
+		MaxAge:   28800, // 8 hours
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	http.Redirect(w, r, "/", http.StatusFound)
+}
+
+func (fa *FormAuth) handleLogout(w http.ResponseWriter, r *http.Request) {
+	if cookie, err := r.Cookie("intu_session"); err == nil {
+		fa.sessions.Delete(cookie.Value)
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:   "intu_session",
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1,
+	})
+
+	http.Redirect(w, r, "/login", http.StatusFound)
+}
+
+func (fa *FormAuth) serveLoginPage(w http.ResponseWriter, _ *http.Request, errMsg string) {
+	errorHTML := ""
+	if errMsg != "" {
+		errorHTML = `<div class="error">` + errMsg + `</div>`
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	fmt.Fprintf(w, loginPageHTML, errorHTML)
+}
+
+func generateSessionToken() string {
+	b := make([]byte, 32)
+	rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+const loginPageHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>intu - Login</title>
+  <style>
+    :root {
+      --bg-primary: #0f172a; --bg-secondary: #1e293b; --bg-tertiary: #334155;
+      --text-primary: #f1f5f9; --text-secondary: #94a3b8; --text-muted: #64748b;
+      --accent: #38bdf8; --accent-hover: #7dd3fc;
+      --error: #ef4444; --border: #334155; --radius: 12px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-primary); color: var(--text-primary);
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    }
+    .login-card {
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 40px; width: 100%%; max-width: 400px;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+    }
+    .logo { text-align: center; margin-bottom: 32px; }
+    .logo h1 { font-size: 2rem; color: var(--accent); font-weight: 800; letter-spacing: -0.5px; }
+    .logo p { color: var(--text-muted); font-size: 0.9rem; margin-top: 4px; }
+    .field { margin-bottom: 20px; }
+    .field label { display: block; color: var(--text-secondary); font-size: 0.85rem; font-weight: 500; margin-bottom: 6px; }
+    .field input {
+      width: 100%%; padding: 10px 14px; background: var(--bg-tertiary); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text-primary); font-size: 0.95rem; outline: none;
+      transition: border-color 0.2s;
+    }
+    .field input:focus { border-color: var(--accent); }
+    .btn {
+      width: 100%%; padding: 12px; background: var(--accent); color: var(--bg-primary);
+      border: none; border-radius: 8px; font-size: 1rem; font-weight: 600;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .error {
+      background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3);
+      color: var(--error); padding: 10px 14px; border-radius: 8px;
+      font-size: 0.85rem; margin-bottom: 20px; text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="logo">
+      <h1>intu</h1>
+      <p>Dashboard</p>
+    </div>
+    %s
+    <form method="POST" action="/login">
+      <div class="field">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" autocomplete="username" autofocus required>
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn">Sign In</button>
+    </form>
+  </div>
+</body>
+</html>`
 
 func writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")

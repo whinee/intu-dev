@@ -28,23 +28,14 @@
             </p>
 
             <h2>Install</h2>
-            <h3>npm (recommended)</h3>
             <div class="code-block">
                 <div class="code-block-header"><span class="code-block-lang">bash</span></div>
                 <pre><code>npm install -g intu-dev</code></pre>
             </div>
 
-            <h3>Build from source</h3>
-            <div class="code-block">
-                <div class="code-block-header"><span class="code-block-lang">bash</span></div>
-                <pre><code>git clone https://github.com/intuware/intu-dev.git
-cd intu-dev
-go build -o intu .</code></pre>
-            </div>
-
             <div class="callout callout-info">
                 <strong>Prerequisites</strong>
-                Go 1.22+ and Node.js 18+ (with npm) are required. No external services such as
+                Node.js 18+ (with npm) is required. No external services such as
                 Kafka or PostgreSQL are needed for local development.
             </div>
 
@@ -83,19 +74,26 @@ npm run dev</code></pre>
             <div class="code-block">
                 <div class="code-block-header"><span class="code-block-lang">text</span></div>
                 <pre><code>my-project/
-├── intu.yaml
-├── intu.dev.yaml
-├── intu.prod.yaml
-├── .env
-├── package.json
-├── tsconfig.json
-├── lib/
-│   └── index.ts
-└── channels/
-    └── sample-channel/
-        ├── channel.yaml
-        ├── transformer.ts
-        └── validator.ts</code></pre>
+├── intu.yaml              # Root config + named destinations
+├── intu.dev.yaml          # Dev profile overrides
+├── intu.prod.yaml         # Production profile
+├── .env                   # Environment variables
+├── package.json           # npm scripts + dependencies
+├── tsconfig.json          # TypeScript compiler config
+├── types/
+│   └── hl7-standard.d.ts  # Type declarations
+├── channels/
+│   ├── http-to-file/      # JSON pass-through channel
+│   │   ├── channel.yaml
+│   │   ├── transformer.ts
+│   │   └── validator.ts
+│   └── fhir-to-adt/       # FHIR Patient → HL7 ADT channel
+│       ├── channel.yaml
+│       ├── transformer.ts
+│       └── validator.ts
+├── Dockerfile
+├── docker-compose.yml
+└── README.md</code></pre>
             </div>
 
             <table class="docs-table">
@@ -120,15 +118,15 @@ npm run dev</code></pre>
                     </tr>
                     <tr>
                         <td><code>package.json</code></td>
-                        <td>Node.js manifest for TypeScript compilation</td>
+                        <td>npm scripts (<code>dev</code>, <code>serve</code>, <code>start</code>, <code>build</code>) and dependencies</td>
                     </tr>
                     <tr>
                         <td><code>tsconfig.json</code></td>
                         <td>TypeScript compiler configuration</td>
                     </tr>
                     <tr>
-                        <td><code>lib/</code></td>
-                        <td>Shared TypeScript utilities</td>
+                        <td><code>types/</code></td>
+                        <td>TypeScript type declarations (e.g. <code>hl7-standard</code>)</td>
                     </tr>
                     <tr>
                         <td><code>channels/</code></td>
@@ -160,7 +158,7 @@ npm run dev</code></pre>
                     <span class="prop-name">Transformers</span>
                     <div class="prop-desc">
                         Transformers are TypeScript functions that manipulate messages as they flow through
-                        a channel. They are compiled by <code>intu build</code> using <code>tsc</code>.
+                        a channel. They are auto-compiled when the engine starts.
                     </div>
                 </div>
                 <div class="prop-item">
@@ -191,6 +189,14 @@ npm run dev</code></pre>
 
             <h2>Runtime Features</h2>
             <div class="prop-list">
+                <div class="prop-item">
+                    <span class="prop-name">Hot Reload</span>
+                    <div class="prop-desc">
+                        Edit <code>channel.yaml</code> or <code>.ts</code> files and the affected channel
+                        restarts automatically. TypeScript is recompiled on the fly &mdash; no manual
+                        rebuild needed.
+                    </div>
+                </div>
                 <div class="prop-item">
                     <span class="prop-name">Retry &amp; Dead-Letter Queue</span>
                     <div class="prop-desc">
@@ -260,6 +266,12 @@ npm run dev</code></pre>
                     <a href="schema.html">
                         <h3>Schema Reference</h3>
                         <p>JSON schemas for IDE autocompletion and AI-assisted configuration.</p>
+                    </a>
+                </div>
+                <div class="card">
+                    <a href="contributing.html">
+                        <h3>Contributing</h3>
+                        <p>Build from source, run tests, and contribute to intu.</p>
                     </a>
                 </div>
             </div>

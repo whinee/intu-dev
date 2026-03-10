@@ -64,31 +64,55 @@ cd my-project
 npm run dev
 ```
 
-`intu init` scaffolds the project and runs `npm install` automatically. `npm run dev` starts the engine (which auto-compiles TypeScript).
+`intu init` scaffolds the project and runs `npm install` automatically. `npm run dev` starts the engine with hot-reload (auto-compiles TypeScript, restarts channels on file changes).
 
-Add a channel:
+Dashboard: http://localhost:3000 (admin / admin)
+
+### npm Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start in development mode (hot-reload, debug logging) |
+| `npm run serve` | Start with default profile |
+| `npm start` | Start in production mode |
+| `npm run build` | Compile TypeScript (for CI/CD — `intu serve` auto-compiles) |
+
+### Test the included channels
 
 ```bash
-intu c my-channel --dir .
+# JSON pass-through
+curl -X POST http://localhost:8081/ingest \
+  -H "Content-Type: application/json" -d '{"hello":"world"}'
+
+# FHIR Patient → HL7 ADT (also serves /fhir/r4/metadata)
+curl -X POST http://localhost:8082/fhir/r4/Patient \
+  -H "Content-Type: application/json" \
+  -d '{"resourceType":"Patient","id":"123","name":[{"family":"Smith","given":["John"]}],"gender":"male","birthDate":"1990-01-15"}'
+```
+
+Add a new channel:
+
+```bash
+intu c my-channel
 ```
 
 ## Project Structure (after `intu init`)
 
 ```
 my-project/
-├── intu.yaml           # Root config + named destinations
-├── intu.dev.yaml       # Dev profile overrides
-├── intu.prod.yaml      # Prod profile overrides
-├── .env
+├── intu.yaml              # Root config + named destinations
+├── intu.dev.yaml          # Dev profile overrides
+├── intu.prod.yaml         # Production profile
+├── .env                   # Environment variables
+├── package.json           # npm scripts + dependencies
+├── tsconfig.json          # TypeScript compiler config
+├── types/
+│   └── hl7-standard.d.ts  # Type declarations for hl7-standard
 ├── channels/
-│   └── sample-channel/
-│       ├── channel.yaml
-│       ├── transformer.ts
-│       └── validator.ts
-├── lib/
-│   └── index.ts        # Shared utilities
-├── package.json
-├── tsconfig.json
+│   ├── http-to-file/      # JSON pass-through channel
+│   └── fhir-to-adt/       # FHIR Patient → HL7 ADT channel
+├── Dockerfile
+├── docker-compose.yml
 └── README.md
 ```
 
@@ -96,10 +120,19 @@ my-project/
 
 ```
 channels/my-channel/
-├── channel.yaml        # Listener, validator, transformer, destinations
+├── channel.yaml       # Listener, validator, transformer, destinations
 ├── transformer.ts     # Pure function: JSON in → JSON out
 └── validator.ts       # Validates input, throws on invalid
 ```
+
+## Included Packages
+
+Scaffolded projects include these npm packages for working with healthcare data:
+
+| Package | Type | Purpose |
+|---------|------|---------|
+| `@types/fhir` | devDependency | FHIR R4 TypeScript types (import from `fhir/r4`) |
+| `hl7-standard` | dependency | HL7v2 message builder and parser |
 
 ## Destinations
 
@@ -165,6 +198,7 @@ This package ships the prebuilt `intu` CLI binary. All connectors listed below a
 
 ## Runtime Features
 
+- **Hot Reload**: Edit `channel.yaml` or `.ts` files and the affected channel restarts automatically — TypeScript is recompiled on the fly.
 - **Pipeline Stages**: Preprocessor, validator, source filter, transformer, per-destination filter/transformer, response transformer, postprocessor.
 - **Retry & DLQ**: Configurable retry with backoff (fixed, linear, exponential) and dead-letter queue.
 - **Destination Queuing**: Per-destination queues with overflow policies and concurrent workers.

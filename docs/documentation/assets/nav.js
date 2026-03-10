@@ -44,7 +44,8 @@
         { title: 'Direct', href: '/destinations/direct.html', id: 'dest-direct' }
       ]
     },
-    { title: 'Schema Reference', href: '/schema.html', id: 'schema' }
+    { title: 'Schema Reference', href: '/schema.html', id: 'schema' },
+    { title: 'Contributing', href: '/contributing.html', id: 'contributing' }
   ];
 
   var FAVICON = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%230ea5e9'/><path d='M50 15C50 15 52 30 65 32C52 34 50 49 50 49C50 49 48 34 35 32C48 30 50 15 50 15Z' fill='white'/><rect x='42' y='55' width='16' height='30' rx='5' fill='white'/></svg>";
@@ -77,19 +78,22 @@
       '<div style="display:flex;align-items:center;gap:16px;">' +
         '<button class="mobile-menu-btn" id="menu-toggle" aria-label="Toggle menu">&#9776;</button>' +
         '<a href="' + href('/../index.html') + '" class="logo">' +
-          '<svg width="28" height="28" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+          '<svg width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">' +
             '<rect width="100" height="100" rx="24" fill="#0ea5e9"/>' +
             '<path d="M50 15C50 15 52 30 65 32C52 34 50 49 50 49C50 49 48 34 35 32C48 30 50 15 50 15Z" fill="white"/>' +
             '<rect x="42" y="55" width="16" height="30" rx="5" fill="white"/>' +
           '</svg>' +
-          '<span>intu<span>.dev</span></span>' +
+          '<span>intu<span class="logo-accent">.dev</span></span>' +
         '</a>' +
       '</div>' +
       '<div class="nav-links">' +
         '<a href="' + href('/../index.html') + '">Home</a>' +
         '<a href="' + href('/index.html') + '" class="active">Docs</a>' +
-        '<a href="https://github.com/intuware/intu-dev" target="_blank">GitHub</a>' +
-      '</div>';
+      '</div>' +
+      '<a href="https://github.com/intuware/intu" target="_blank" class="github-btn">' +
+        '<svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>' +
+        'GitHub' +
+      '</a>';
     document.body.prepend(nav);
   }
 

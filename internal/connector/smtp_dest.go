@@ -45,7 +45,7 @@ func (s *SMTPDest) Send(ctx context.Context, msg *message.Message) (*message.Res
 			port = 25
 		}
 	}
-	addr := fmt.Sprintf("%s:%d", s.cfg.Host, port)
+	addr := net.JoinHostPort(s.cfg.Host, fmt.Sprintf("%d", port))
 
 	var conn net.Conn
 	var err error

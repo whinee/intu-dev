@@ -35,7 +35,7 @@ func (d *DICOMDest) Send(ctx context.Context, msg *message.Message) (*message.Re
 	if port == 0 {
 		port = 104
 	}
-	addr := fmt.Sprintf("%s:%d", d.cfg.Host, port)
+	addr := net.JoinHostPort(d.cfg.Host, fmt.Sprintf("%d", port))
 
 	timeout := 30 * time.Second
 	if d.cfg.TimeoutMs > 0 {

@@ -30,7 +30,7 @@ func NewTCPDest(name string, cfg *config.TCPDestMapConfig, logger *slog.Logger) 
 }
 
 func (t *TCPDest) dial() (net.Conn, error) {
-	addr := fmt.Sprintf("%s:%d", t.cfg.Host, t.cfg.Port)
+	addr := net.JoinHostPort(t.cfg.Host, fmt.Sprintf("%d", t.cfg.Port))
 	timeout := 30 * time.Second
 	if t.cfg.TimeoutMs > 0 {
 		timeout = time.Duration(t.cfg.TimeoutMs) * time.Millisecond

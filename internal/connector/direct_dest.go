@@ -53,7 +53,7 @@ func (d *DirectDest) Send(ctx context.Context, msg *message.Message) (*message.R
 		port = 465 // Direct messaging defaults to implicit TLS
 	}
 
-	addr := fmt.Sprintf("%s:%d", smtpHost, port)
+	addr := net.JoinHostPort(smtpHost, fmt.Sprintf("%d", port))
 	timeout := 30 * time.Second
 
 	var conn net.Conn

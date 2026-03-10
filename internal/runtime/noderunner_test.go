@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 func testLogger() *slog.Logger {
@@ -398,6 +399,128 @@ exports.transform = function transform(msg, ctx) {
 		if err != nil {
 			t.Fatalf("iteration %d: %v", i, err)
 		}
+	}
+}
+
+func TestNodeRunner_WorkerRestartOnCrash(t *testing.T) {
+	dir := t.TempDir()
+	writeTestJS(t, dir, "simple.js", `
+exports.echo = function echo(val) {
+	return val;
+};
+`)
+
+	nr, err := NewNodeRunner(1, testLogger())
+	if err != nil {
+		t.Fatalf("NewNodeRunner: %v", err)
+	}
+	defer nr.Close()
+
+	result, err := nr.Call("echo", filepath.Join(dir, "simple.js"), "before-kill")
+	if err != nil {
+		t.Fatalf("Call before kill: %v", err)
+	}
+	if result != "before-kill" {
+		t.Fatalf("expected 'before-kill', got %v", result)
+	}
+
+	// Kill the worker process to simulate a crash
+	nr.workers[0].mu.Lock()
+	nr.workers[0].cmd.Process.Kill()
+	nr.workers[0].cmd.Wait()
+	nr.workers[0].dead = true
+	nr.workers[0].mu.Unlock()
+
+	// Next call should transparently restart the worker and succeed
+	result, err = nr.Call("echo", filepath.Join(dir, "simple.js"), "after-kill")
+	if err != nil {
+		t.Fatalf("Call after kill: %v", err)
+	}
+	if result != "after-kill" {
+		t.Fatalf("expected 'after-kill', got %v", result)
+	}
+}
+
+func TestNodeRunner_WorkerRestartOnSendFailure(t *testing.T) {
+	dir := t.TempDir()
+	writeTestJS(t, dir, "simple.js", `
+exports.echo = function echo(val) {
+	return val;
+};
+`)
+
+	nr, err := NewNodeRunner(1, testLogger())
+	if err != nil {
+		t.Fatalf("NewNodeRunner: %v", err)
+	}
+	defer nr.Close()
+
+	// Kill the process without setting the dead flag — simulates an
+	// unexpected crash detected during send (broken pipe)
+	nr.workers[0].mu.Lock()
+	nr.workers[0].cmd.Process.Kill()
+	nr.workers[0].cmd.Wait()
+	nr.workers[0].mu.Unlock()
+
+	result, err := nr.Call("echo", filepath.Join(dir, "simple.js"), "recovered")
+	if err != nil {
+		t.Fatalf("Call after undetected crash: %v", err)
+	}
+	if result != "recovered" {
+		t.Fatalf("expected 'recovered', got %v", result)
+	}
+}
+
+func TestNodeRunner_PreloadRestartsDeadWorker(t *testing.T) {
+	dir := t.TempDir()
+	writeTestJS(t, dir, "mod.js", `
+exports.greet = function greet(name) {
+	return "hi " + name;
+};
+`)
+
+	nr, err := NewNodeRunner(1, testLogger())
+	if err != nil {
+		t.Fatalf("NewNodeRunner: %v", err)
+	}
+	defer nr.Close()
+
+	// Kill the worker
+	nr.workers[0].mu.Lock()
+	nr.workers[0].cmd.Process.Kill()
+	nr.workers[0].cmd.Wait()
+	nr.workers[0].dead = true
+	nr.workers[0].mu.Unlock()
+
+	modPath := filepath.Join(dir, "mod.js")
+	if err := nr.PreloadModule(modPath); err != nil {
+		t.Fatalf("PreloadModule after crash: %v", err)
+	}
+
+	result, err := nr.Call("greet", modPath, "world")
+	if err != nil {
+		t.Fatalf("Call after preload restart: %v", err)
+	}
+	if result != "hi world" {
+		t.Fatalf("expected 'hi world', got %v", result)
+	}
+}
+
+func TestNodeRunner_CloseWithTimeout(t *testing.T) {
+	nr, err := NewNodeRunner(2, testLogger())
+	if err != nil {
+		t.Fatalf("NewNodeRunner: %v", err)
+	}
+
+	start := time.Now()
+	if err := nr.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	elapsed := time.Since(start)
+
+	// Normal shutdown should be well under the 5s timeout
+	if elapsed > 3*time.Second {
+		t.Fatalf("Close took too long: %v", elapsed)
 	}
 }
 

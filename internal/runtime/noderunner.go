@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 //go:embed worker.js
@@ -41,6 +42,7 @@ type nodeWorker struct {
 	stdin  io.WriteCloser
 	stdout *bufio.Scanner
 	mu     sync.Mutex
+	dead   bool
 }
 
 type NodeRunner struct {
@@ -102,6 +104,7 @@ func NewNodeRunner(poolSize int, logger *slog.Logger) (*NodeRunner, error) {
 func (nr *NodeRunner) startWorker() (*nodeWorker, error) {
 	cmd := exec.Command("node", nr.workerJS)
 	cmd.Stderr = os.Stderr
+	setProcessGroup(cmd)
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -131,6 +134,30 @@ func (nr *NodeRunner) acquireWorker() *nodeWorker {
 	return nr.workers[idx%uint64(len(nr.workers))]
 }
 
+// restartWorker kills the old process and spawns a fresh one.
+// Caller must hold w.mu.
+func (nr *NodeRunner) restartWorker(w *nodeWorker) error {
+	if w.stdin != nil {
+		w.stdin.Close()
+	}
+	if w.cmd != nil && w.cmd.Process != nil {
+		killProcessGroup(w.cmd.Process.Pid)
+		_ = w.cmd.Wait()
+	}
+
+	fresh, err := nr.startWorker()
+	if err != nil {
+		return err
+	}
+
+	w.cmd = fresh.cmd
+	w.stdin = fresh.stdin
+	w.stdout = fresh.stdout
+	w.dead = false
+	nr.logger.Info("node worker restarted")
+	return nil
+}
+
 func (nr *NodeRunner) nextRequestID() int64 {
 	return atomic.AddInt64(&nr.nextID, 1)
 }
@@ -149,6 +176,12 @@ func (nr *NodeRunner) loadOnWorker(w *nodeWorker, module string) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
+	if w.dead {
+		if err := nr.restartWorker(w); err != nil {
+			return fmt.Errorf("restart dead worker: %w", err)
+		}
+	}
+
 	reqID := nr.nextRequestID()
 	req := nodeRequest{
 		ID:     reqID,
@@ -157,11 +190,21 @@ func (nr *NodeRunner) loadOnWorker(w *nodeWorker, module string) error {
 	}
 
 	if err := nr.sendRequest(w, &req); err != nil {
-		return err
+		nr.logger.Warn("worker send failed during load, restarting", "error", err)
+		if restartErr := nr.restartWorker(w); restartErr != nil {
+			return fmt.Errorf("send failed: %v; restart failed: %w", err, restartErr)
+		}
+		reqID = nr.nextRequestID()
+		req.ID = reqID
+		if err := nr.sendRequest(w, &req); err != nil {
+			w.dead = true
+			return fmt.Errorf("send failed after restart: %w", err)
+		}
 	}
 
 	resp, err := nr.readResponse(w, reqID)
 	if err != nil {
+		w.dead = true
 		return err
 	}
 
@@ -176,6 +219,12 @@ func (nr *NodeRunner) Call(fn string, entrypoint string, args ...any) (any, erro
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
+	if w.dead {
+		if err := nr.restartWorker(w); err != nil {
+			return nil, fmt.Errorf("restart dead worker: %w", err)
+		}
+	}
+
 	reqID := nr.nextRequestID()
 	req := nodeRequest{
 		ID:     reqID,
@@ -186,11 +235,24 @@ func (nr *NodeRunner) Call(fn string, entrypoint string, args ...any) (any, erro
 	}
 
 	if err := nr.sendRequest(w, &req); err != nil {
-		return nil, err
+		// Send failed before execution started — safe to restart and retry
+		nr.logger.Warn("worker send failed, restarting", "error", err)
+		if restartErr := nr.restartWorker(w); restartErr != nil {
+			return nil, fmt.Errorf("send failed: %v; restart failed: %w", err, restartErr)
+		}
+		reqID = nr.nextRequestID()
+		req.ID = reqID
+		if err := nr.sendRequest(w, &req); err != nil {
+			w.dead = true
+			return nil, fmt.Errorf("send failed after restart: %w", err)
+		}
 	}
 
 	resp, err := nr.readResponse(w, reqID)
 	if err != nil {
+		// Worker died mid-execution — restart for future calls but don't retry
+		// (script may have had side effects)
+		w.dead = true
 		return nil, err
 	}
 
@@ -260,11 +322,33 @@ func (nr *NodeRunner) forwardLog(resp *nodeResponse) {
 	}
 }
 
+const workerShutdownTimeout = 5 * time.Second
+
 func (nr *NodeRunner) Close() error {
 	for _, w := range nr.workers {
 		w.stdin.Close()
-		_ = w.cmd.Wait()
 	}
+
+	done := make(chan struct{})
+	go func() {
+		for _, w := range nr.workers {
+			_ = w.cmd.Wait()
+		}
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(workerShutdownTimeout):
+		nr.logger.Warn("worker pool shutdown timed out, force killing")
+		for _, w := range nr.workers {
+			if w.cmd != nil && w.cmd.Process != nil {
+				killProcessGroup(w.cmd.Process.Pid)
+			}
+		}
+		<-done
+	}
+
 	if nr.cleanupDir != "" {
 		os.RemoveAll(nr.cleanupDir)
 	}

@@ -50,7 +50,7 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           ext=""
           if [ "$GOOS" = "windows" ]; then ext=".exe"; fi
-          go build -ldflags "-s -w -X github.com/intuware/intu/cmd.Version=${VERSION}" -o "intu${ext}" .
+          go build -ldflags "-s -w -X github.com/intuware/intu-dev/cmd.Version=${VERSION}" -o "intu${ext}" .
 
       - name: Package
         run: |

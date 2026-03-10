@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -36,6 +37,35 @@ func noopHandler(_ context.Context, _ *message.Message) error {
 	return nil
 }
 
+type msgCapture struct {
+	mu   sync.Mutex
+	msgs []*message.Message
+}
+
+func (c *msgCapture) handler() MessageHandler {
+	return func(_ context.Context, msg *message.Message) error {
+		c.mu.Lock()
+		c.msgs = append(c.msgs, msg)
+		c.mu.Unlock()
+		return nil
+	}
+}
+
+func (c *msgCapture) count() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.msgs)
+}
+
+func (c *msgCapture) get(i int) *message.Message {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if i < len(c.msgs) {
+		return c.msgs[i]
+	}
+	return nil
+}
+
 // -------------------------------------------------------------------
 // HTTP Source Tests
 // -------------------------------------------------------------------
@@ -47,13 +77,9 @@ func TestHTTPSource_StartStop(t *testing.T) {
 	src = NewHTTPSource(cfg, testLogger())
 
 	ctx := context.Background()
-	var received []*message.Message
-	handler := func(_ context.Context, msg *message.Message) error {
-		received = append(received, msg)
-		return nil
-	}
+	capture := &msgCapture{}
 
-	if err := src.Start(ctx, handler); err != nil {
+	if err := src.Start(ctx, capture.handler()); err != nil {
 		t.Fatalf("start: %v", err)
 	}
 	defer src.Stop(ctx)
@@ -72,11 +98,11 @@ func TestHTTPSource_StartStop(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
-	if len(received) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(received))
+	if capture.count() != 1 {
+		t.Fatalf("expected 1 message, got %d", capture.count())
 	}
-	if string(received[0].Raw) != "hello" {
-		t.Fatalf("expected 'hello', got %q", string(received[0].Raw))
+	if string(capture.get(0).Raw) != "hello" {
+		t.Fatalf("expected 'hello', got %q", string(capture.get(0).Raw))
 	}
 }
 
@@ -257,13 +283,9 @@ func TestHTTPSource_CorrelationID(t *testing.T) {
 	src := NewHTTPSource(cfg, testLogger())
 
 	ctx := context.Background()
-	var received []*message.Message
-	handler := func(_ context.Context, msg *message.Message) error {
-		received = append(received, msg)
-		return nil
-	}
+	capture := &msgCapture{}
 
-	if err := src.Start(ctx, handler); err != nil {
+	if err := src.Start(ctx, capture.handler()); err != nil {
 		t.Fatalf("start: %v", err)
 	}
 	defer src.Stop(ctx)
@@ -276,11 +298,11 @@ func TestHTTPSource_CorrelationID(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	if len(received) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(received))
+	if capture.count() != 1 {
+		t.Fatalf("expected 1 message, got %d", capture.count())
 	}
-	if received[0].CorrelationID != "corr-123" {
-		t.Fatalf("expected correlation ID 'corr-123', got %q", received[0].CorrelationID)
+	if capture.get(0).CorrelationID != "corr-123" {
+		t.Fatalf("expected correlation ID 'corr-123', got %q", capture.get(0).CorrelationID)
 	}
 }
 
@@ -341,13 +363,9 @@ func TestHTTPSource_TLS(t *testing.T) {
 	src := NewHTTPSource(cfg, testLogger())
 
 	ctx := context.Background()
-	var received []*message.Message
-	handler := func(_ context.Context, msg *message.Message) error {
-		received = append(received, msg)
-		return nil
-	}
+	capture := &msgCapture{}
 
-	if err := src.Start(ctx, handler); err != nil {
+	if err := src.Start(ctx, capture.handler()); err != nil {
 		t.Fatalf("start: %v", err)
 	}
 	defer src.Stop(ctx)
@@ -367,11 +385,11 @@ func TestHTTPSource_TLS(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
-	if len(received) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(received))
+	if capture.count() != 1 {
+		t.Fatalf("expected 1 message, got %d", capture.count())
 	}
-	if string(received[0].Raw) != "tls-test" {
-		t.Fatalf("expected 'tls-test', got %q", string(received[0].Raw))
+	if string(capture.get(0).Raw) != "tls-test" {
+		t.Fatalf("expected 'tls-test', got %q", string(capture.get(0).Raw))
 	}
 }
 
@@ -384,13 +402,8 @@ func TestTCPSource_RawMode(t *testing.T) {
 	src := NewTCPSource(cfg, testLogger())
 
 	ctx := context.Background()
-	var received []*message.Message
-	handler := func(_ context.Context, msg *message.Message) error {
-		received = append(received, msg)
-		return nil
-	}
+	capture := &msgCapture{}
 
-	// Use a specific port so we know the address
 	ln, err := net.Listen("tcp", ":0")
 	if err != nil {
 		t.Fatalf("listen: %v", err)
@@ -404,7 +417,7 @@ func TestTCPSource_RawMode(t *testing.T) {
 	cfg.Port = port
 
 	src = NewTCPSource(cfg, testLogger())
-	if err := src.Start(ctx, handler); err != nil {
+	if err := src.Start(ctx, capture.handler()); err != nil {
 		t.Fatalf("start: %v", err)
 	}
 	defer src.Stop(ctx)
@@ -420,11 +433,11 @@ func TestTCPSource_RawMode(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	if len(received) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(received))
+	if capture.count() != 1 {
+		t.Fatalf("expected 1 message, got %d", capture.count())
 	}
-	if string(received[0].Raw) != "hello" {
-		t.Fatalf("expected 'hello', got %q", string(received[0].Raw))
+	if string(capture.get(0).Raw) != "hello" {
+		t.Fatalf("expected 'hello', got %q", string(capture.get(0).Raw))
 	}
 }
 
@@ -444,13 +457,9 @@ func TestTCPSource_MLLPMode(t *testing.T) {
 	src := NewTCPSource(cfg, testLogger())
 
 	ctx := context.Background()
-	var received []*message.Message
-	handler := func(_ context.Context, msg *message.Message) error {
-		received = append(received, msg)
-		return nil
-	}
+	capture := &msgCapture{}
 
-	if err := src.Start(ctx, handler); err != nil {
+	if err := src.Start(ctx, capture.handler()); err != nil {
 		t.Fatalf("start: %v", err)
 	}
 	defer src.Stop(ctx)
@@ -474,11 +483,11 @@ func TestTCPSource_MLLPMode(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	if len(received) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(received))
+	if capture.count() != 1 {
+		t.Fatalf("expected 1 message, got %d", capture.count())
 	}
-	if string(received[0].Raw) != hl7msg {
-		t.Fatalf("MLLP message mismatch:\nexpected: %q\ngot:      %q", hl7msg, string(received[0].Raw))
+	if string(capture.get(0).Raw) != hl7msg {
+		t.Fatalf("MLLP message mismatch:\nexpected: %q\ngot:      %q", hl7msg, string(capture.get(0).Raw))
 	}
 }
 
@@ -565,13 +574,9 @@ func TestTCPSource_TLS(t *testing.T) {
 	src := NewTCPSource(cfg, testLogger())
 
 	ctx := context.Background()
-	var received []*message.Message
-	handler := func(_ context.Context, msg *message.Message) error {
-		received = append(received, msg)
-		return nil
-	}
+	capture := &msgCapture{}
 
-	if err := src.Start(ctx, handler); err != nil {
+	if err := src.Start(ctx, capture.handler()); err != nil {
 		t.Fatalf("start: %v", err)
 	}
 	defer src.Stop(ctx)
@@ -587,11 +592,11 @@ func TestTCPSource_TLS(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	if len(received) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(received))
+	if capture.count() != 1 {
+		t.Fatalf("expected 1 message, got %d", capture.count())
 	}
-	if string(received[0].Raw) != "tls-hello" {
-		t.Fatalf("expected 'tls-hello', got %q", string(received[0].Raw))
+	if string(capture.get(0).Raw) != "tls-hello" {
+		t.Fatalf("expected 'tls-hello', got %q", string(capture.get(0).Raw))
 	}
 }
 
@@ -619,21 +624,17 @@ func TestFileSource_PollAndProcess(t *testing.T) {
 	src := NewFileSource(cfg, testLogger())
 
 	ctx := context.Background()
-	var received []*message.Message
-	handler := func(_ context.Context, msg *message.Message) error {
-		received = append(received, msg)
-		return nil
-	}
+	capture := &msgCapture{}
 
-	if err := src.Start(ctx, handler); err != nil {
+	if err := src.Start(ctx, capture.handler()); err != nil {
 		t.Fatalf("start: %v", err)
 	}
 
 	time.Sleep(300 * time.Millisecond)
 	src.Stop(ctx)
 
-	if len(received) != 2 {
-		t.Fatalf("expected 2 messages, got %d", len(received))
+	if capture.count() != 2 {
+		t.Fatalf("expected 2 messages, got %d", capture.count())
 	}
 
 	// Files should be moved to processed dir
@@ -694,24 +695,20 @@ func TestFileSource_MetadataPopulated(t *testing.T) {
 	src := NewFileSource(cfg, testLogger())
 
 	ctx := context.Background()
-	var received []*message.Message
-	handler := func(_ context.Context, msg *message.Message) error {
-		received = append(received, msg)
-		return nil
-	}
+	capture := &msgCapture{}
 
-	if err := src.Start(ctx, handler); err != nil {
+	if err := src.Start(ctx, capture.handler()); err != nil {
 		t.Fatalf("start: %v", err)
 	}
 
 	time.Sleep(300 * time.Millisecond)
 	src.Stop(ctx)
 
-	if len(received) < 1 {
+	if capture.count() < 1 {
 		t.Fatal("expected at least 1 message")
 	}
 
-	msg := received[0]
+	msg := capture.get(0)
 	if msg.Metadata["filename"] != "meta.txt" {
 		t.Fatalf("expected filename 'meta.txt', got %v", msg.Metadata["filename"])
 	}
@@ -726,13 +723,9 @@ func TestChannelSource_ReceiveFromBus(t *testing.T) {
 	src := NewChannelSource(cfg, testLogger())
 
 	ctx := context.Background()
-	var received []*message.Message
-	handler := func(_ context.Context, msg *message.Message) error {
-		received = append(received, msg)
-		return nil
-	}
+	capture := &msgCapture{}
 
-	if err := src.Start(ctx, handler); err != nil {
+	if err := src.Start(ctx, capture.handler()); err != nil {
 		t.Fatalf("start: %v", err)
 	}
 	defer src.Stop(ctx)
@@ -743,11 +736,11 @@ func TestChannelSource_ReceiveFromBus(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	if len(received) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(received))
+	if capture.count() != 1 {
+		t.Fatalf("expected 1 message, got %d", capture.count())
 	}
-	if string(received[0].Raw) != "bus-message" {
-		t.Fatalf("expected 'bus-message', got %q", string(received[0].Raw))
+	if string(capture.get(0).Raw) != "bus-message" {
+		t.Fatalf("expected 'bus-message', got %q", string(capture.get(0).Raw))
 	}
 }
 
@@ -760,13 +753,9 @@ func TestSOAPSource_StartStop(t *testing.T) {
 	src := NewSOAPSource(cfg, testLogger())
 
 	ctx := context.Background()
-	var received []*message.Message
-	handler := func(_ context.Context, msg *message.Message) error {
-		received = append(received, msg)
-		return nil
-	}
+	capture := &msgCapture{}
 
-	if err := src.Start(ctx, handler); err != nil {
+	if err := src.Start(ctx, capture.handler()); err != nil {
 		t.Fatalf("start: %v", err)
 	}
 	defer src.Stop(ctx)
@@ -787,11 +776,11 @@ func TestSOAPSource_StartStop(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
-	if len(received) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(received))
+	if capture.count() != 1 {
+		t.Fatalf("expected 1 message, got %d", capture.count())
 	}
-	if received[0].Metadata["soap_action"] != "process" {
-		t.Fatalf("expected soap_action 'process', got %v", received[0].Metadata["soap_action"])
+	if capture.get(0).Metadata["soap_action"] != "process" {
+		t.Fatalf("expected soap_action 'process', got %v", capture.get(0).Metadata["soap_action"])
 	}
 }
 
@@ -927,13 +916,9 @@ func TestFHIRSource_CreateResource(t *testing.T) {
 	src := NewFHIRSource(cfg, testLogger())
 
 	ctx := context.Background()
-	var received []*message.Message
-	handler := func(_ context.Context, msg *message.Message) error {
-		received = append(received, msg)
-		return nil
-	}
+	capture := &msgCapture{}
 
-	if err := src.Start(ctx, handler); err != nil {
+	if err := src.Start(ctx, capture.handler()); err != nil {
 		t.Fatalf("start: %v", err)
 	}
 	defer src.Stop(ctx)
@@ -949,11 +934,11 @@ func TestFHIRSource_CreateResource(t *testing.T) {
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("expected 201, got %d", resp.StatusCode)
 	}
-	if len(received) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(received))
+	if capture.count() != 1 {
+		t.Fatalf("expected 1 message, got %d", capture.count())
 	}
-	if received[0].Metadata["resource_type"] != "Patient" {
-		t.Fatalf("expected resource_type 'Patient', got %v", received[0].Metadata["resource_type"])
+	if capture.get(0).Metadata["resource_type"] != "Patient" {
+		t.Fatalf("expected resource_type 'Patient', got %v", capture.get(0).Metadata["resource_type"])
 	}
 }
 
@@ -1043,13 +1028,9 @@ func TestFHIRSource_ResourceFiltering(t *testing.T) {
 	src := NewFHIRSource(cfg, testLogger())
 
 	ctx := context.Background()
-	var received []*message.Message
-	handler := func(_ context.Context, msg *message.Message) error {
-		received = append(received, msg)
-		return nil
-	}
+	capture := &msgCapture{}
 
-	if err := src.Start(ctx, handler); err != nil {
+	if err := src.Start(ctx, capture.handler()); err != nil {
 		t.Fatalf("start: %v", err)
 	}
 	defer src.Stop(ctx)
@@ -1065,8 +1046,8 @@ func TestFHIRSource_ResourceFiltering(t *testing.T) {
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("expected 201 for Patient, got %d", resp.StatusCode)
 	}
-	if len(received) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(received))
+	if capture.count() != 1 {
+		t.Fatalf("expected 1 message, got %d", capture.count())
 	}
 
 	resp, err = http.Post("http://"+addr+"/fhir/Observation", "application/fhir+json",
@@ -1078,8 +1059,8 @@ func TestFHIRSource_ResourceFiltering(t *testing.T) {
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404 for Observation, got %d", resp.StatusCode)
 	}
-	if len(received) != 1 {
-		t.Fatalf("Observation should not have been received, got %d messages", len(received))
+	if capture.count() != 1 {
+		t.Fatalf("Observation should not have been received, got %d messages", capture.count())
 	}
 }
 
@@ -1133,13 +1114,9 @@ func TestFHIRSource_NoResourcesAcceptsAll(t *testing.T) {
 	src := NewFHIRSource(cfg, testLogger())
 
 	ctx := context.Background()
-	var received []*message.Message
-	handler := func(_ context.Context, msg *message.Message) error {
-		received = append(received, msg)
-		return nil
-	}
+	capture := &msgCapture{}
 
-	if err := src.Start(ctx, handler); err != nil {
+	if err := src.Start(ctx, capture.handler()); err != nil {
 		t.Fatalf("start: %v", err)
 	}
 	defer src.Stop(ctx)
@@ -1155,8 +1132,8 @@ func TestFHIRSource_NoResourcesAcceptsAll(t *testing.T) {
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("expected 201 for unrestricted source, got %d", resp.StatusCode)
 	}
-	if len(received) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(received))
+	if capture.count() != 1 {
+		t.Fatalf("expected 1 message, got %d", capture.count())
 	}
 }
 
@@ -1169,13 +1146,9 @@ func TestIHESource_XDSRepository(t *testing.T) {
 	src := NewIHESource(cfg, testLogger())
 
 	ctx := context.Background()
-	var received []*message.Message
-	handler := func(_ context.Context, msg *message.Message) error {
-		received = append(received, msg)
-		return nil
-	}
+	capture := &msgCapture{}
 
-	if err := src.Start(ctx, handler); err != nil {
+	if err := src.Start(ctx, capture.handler()); err != nil {
 		t.Fatalf("start: %v", err)
 	}
 	defer src.Stop(ctx)
@@ -1190,11 +1163,11 @@ func TestIHESource_XDSRepository(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
-	if len(received) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(received))
+	if capture.count() != 1 {
+		t.Fatalf("expected 1 message, got %d", capture.count())
 	}
-	if received[0].Metadata["ihe_profile"] != "xds_repository" {
-		t.Fatalf("expected profile 'xds_repository', got %v", received[0].Metadata["ihe_profile"])
+	if capture.get(0).Metadata["ihe_profile"] != "xds_repository" {
+		t.Fatalf("expected profile 'xds_repository', got %v", capture.get(0).Metadata["ihe_profile"])
 	}
 }
 
@@ -1203,13 +1176,9 @@ func TestIHESource_PIX(t *testing.T) {
 	src := NewIHESource(cfg, testLogger())
 
 	ctx := context.Background()
-	var received []*message.Message
-	handler := func(_ context.Context, msg *message.Message) error {
-		received = append(received, msg)
-		return nil
-	}
+	capture := &msgCapture{}
 
-	if err := src.Start(ctx, handler); err != nil {
+	if err := src.Start(ctx, capture.handler()); err != nil {
 		t.Fatalf("start: %v", err)
 	}
 	defer src.Stop(ctx)
@@ -1224,10 +1193,10 @@ func TestIHESource_PIX(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
-	if len(received) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(received))
+	if capture.count() != 1 {
+		t.Fatalf("expected 1 message, got %d", capture.count())
 	}
-	if received[0].Metadata["ihe_transaction"] != "PatientIdentityCrossReference" {
+	if capture.get(0).Metadata["ihe_transaction"] != "PatientIdentityCrossReference" {
 		t.Fatalf("expected PatientIdentityCrossReference transaction")
 	}
 }
@@ -1237,13 +1206,9 @@ func TestIHESource_PDQ(t *testing.T) {
 	src := NewIHESource(cfg, testLogger())
 
 	ctx := context.Background()
-	var received []*message.Message
-	handler := func(_ context.Context, msg *message.Message) error {
-		received = append(received, msg)
-		return nil
-	}
+	capture := &msgCapture{}
 
-	if err := src.Start(ctx, handler); err != nil {
+	if err := src.Start(ctx, capture.handler()); err != nil {
 		t.Fatalf("start: %v", err)
 	}
 	defer src.Stop(ctx)
@@ -1258,10 +1223,10 @@ func TestIHESource_PDQ(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
-	if len(received) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(received))
+	if capture.count() != 1 {
+		t.Fatalf("expected 1 message, got %d", capture.count())
 	}
-	if received[0].Metadata["ihe_transaction"] != "PatientDemographicsQuery" {
+	if capture.get(0).Metadata["ihe_transaction"] != "PatientDemographicsQuery" {
 		t.Fatalf("expected PatientDemographicsQuery transaction")
 	}
 }
@@ -1357,13 +1322,9 @@ func TestDICOMSource_AAssociateAndData(t *testing.T) {
 	src := NewDICOMSource(cfg, testLogger())
 
 	ctx := context.Background()
-	var received []*message.Message
-	handler := func(_ context.Context, msg *message.Message) error {
-		received = append(received, msg)
-		return nil
-	}
+	capture := &msgCapture{}
 
-	if err := src.Start(ctx, handler); err != nil {
+	if err := src.Start(ctx, capture.handler()); err != nil {
 		t.Fatalf("start: %v", err)
 	}
 	defer src.Stop(ctx)
@@ -1424,11 +1385,11 @@ func TestDICOMSource_AAssociateAndData(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	if len(received) < 1 {
-		t.Fatalf("expected at least 1 message, got %d", len(received))
+	if capture.count() < 1 {
+		t.Fatalf("expected at least 1 message, got %d", capture.count())
 	}
-	if received[0].ContentType != "dicom" {
-		t.Fatalf("expected content type 'dicom', got %q", received[0].ContentType)
+	if capture.get(0).ContentType != "dicom" {
+		t.Fatalf("expected content type 'dicom', got %q", capture.get(0).ContentType)
 	}
 }
 

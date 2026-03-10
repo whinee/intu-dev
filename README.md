@@ -1,31 +1,40 @@
-# intu
+<p align="center">
+  <a href="https://intu.dev">
+    <img src="docs/architecture.svg" alt="intu architecture" width="720">
+  </a>
+</p>
 
-`intu` is a Git-native, AI-friendly healthcare interoperability framework that lets teams build, version, and deploy integration pipelines using YAML configuration and TypeScript transformers.
+<h1 align="center">intu</h1>
 
-## Features
+<p align="center">
+  <strong>Integration as Code for Healthcare</strong><br>
+  Build, version, and deploy healthcare integration pipelines using YAML and TypeScript.
+</p>
 
-- Go-based CLI and runtime engine.
-- `intu init <project-name>` to bootstrap a project.
-- `intu c <channel-name>` / `intu channel add <channel-name>` to add channels.
-- Root-level named destinations; channels reference by name; multi-destination support.
-- YAML configuration with profile layering (`intu.yaml`, `intu.dev.yaml`, `intu.prod.yaml`).
-- Pure TypeScript transformers and validators (JSON in, JSON out).
-- Full pipeline: preprocessor, validator, source filter, transformer, destination filter/transformer, response transformer, postprocessor.
-- 12 source connector types and 13 destination connector types.
-- Healthcare protocol support: HL7v2, FHIR R4, X12, CCDA, DICOM.
-- Retry with configurable backoff, dead-letter queue, destination queuing.
-- Message storage, metrics, alerting, and batch processing.
-- Map variables (globalMap, channelMap, responseMap, connectorMap) for sharing data across pipeline stages.
-- Code template libraries for reusing logic across channels.
-- Channel import/export, cloning, and dependency ordering.
-- Message browser for searching and inspecting processed messages.
-- Web dashboard for monitoring channels and metrics.
+<p align="center">
+  <a href="https://github.com/intuware/intu-dev/actions/workflows/ci.yml"><img src="https://github.com/intuware/intu-dev/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://www.npmjs.com/package/intu-dev"><img src="https://img.shields.io/npm/v/intu-dev?color=cb3837&label=npm" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/intu-dev"><img src="https://img.shields.io/npm/dm/intu-dev?color=38bdf8" alt="npm downloads"></a>
+  <a href="https://github.com/intuware/intu-dev/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MPL--2.0-blue" alt="License"></a>
+  <a href="https://goreportcard.com/report/github.com/intuware/intu"><img src="https://goreportcard.com/badge/github.com/intuware/intu" alt="Go Report Card"></a>
+</p>
 
-## Architecture
+<p align="center">
+  <a href="https://intu.dev">Website</a> · <a href="https://intu.dev/documentation/index.html">Docs</a> · <a href="https://www.npmjs.com/package/intu-dev">npm</a> · <a href="https://github.com/intuware/intu-dev/issues">Issues</a>
+</p>
 
-High-level architecture of an `intu` deployment:
+---
 
-![intu architecture](docs/architecture.svg)
+`intu` is a Git-native, AI-friendly healthcare interoperability framework. Define channels as YAML config and TypeScript transformers, store everything in Git, and run a production-grade engine with a single command.
+
+## Why intu?
+
+- **Integration as Code** — Pipelines are YAML + TypeScript files in Git. No GUI, no database config, no vendor lock-in.
+- **Healthcare-native** — HL7v2, FHIR R4, X12, CCDA, DICOM parsers and connectors built in.
+- **Fast** — Go binary + Node.js worker pool. Sub-millisecond transforms. Hot-reload on file change.
+- **AI-friendly** — Declarative config means LLMs can generate, modify, and review pipelines.
+- **Full pipeline** — Preprocessor → Validator → Source Filter → Transformer → Destination Filter → Destination Transformer → Response Transformer → Postprocessor.
+- **12 source connectors, 13 destination connectors** — HTTP, TCP/MLLP, FHIR, Kafka, Database, File, SFTP, Email, DICOM, SOAP, IHE, Channel, SMTP, JMS, Direct, Log.
 
 ## Install
 
@@ -35,12 +44,12 @@ High-level architecture of an `intu` deployment:
 npm i -g intu-dev
 ```
 
+This installs the Go binary for your platform automatically.
+
 **From source:**
 
 ```bash
-go mod tidy
 go build -o intu .
-# or: go run . init ...
 ```
 
 ## Quick Start
@@ -51,87 +60,120 @@ cd my-project
 npm run dev
 ```
 
-`intu init` scaffolds the project and runs `npm install` automatically. `npm run dev` starts the engine (which auto-compiles TypeScript).
+`intu init` scaffolds the project and runs `npm install`. `npm run dev` starts the engine with auto-compile and hot-reload.
 
-Add a new channel:
+Add a channel:
 
 ```bash
-intu c my-channel --dir .
-# or
-intu channel add my-channel --dir .
+intu c my-channel
 ```
 
-## CLI Commands
+## Dashboard
 
-All commands accept the global flag `--log-level (debug|info|warn|error)` (default: `info`).
+`intu` ships with a built-in web dashboard for monitoring channels, browsing messages, and triggering reprocessing.
 
-### Project & Build
+<p align="center">
+  <img src="docs/dashboard.png" alt="intu dashboard" width="720">
+</p>
 
-| Command | Description |
-|---------|-------------|
-| `intu init <project-name> [--dir] [--force]` | Bootstrap a new project and install dependencies |
-| `intu validate [--dir] [--profile]` | Validate project configuration and channel layout |
-| `intu build [--dir]` | Compile TypeScript transformers (optional — `intu serve` auto-compiles) |
-| `intu serve [--dir] [--profile]` | Start the runtime engine and process messages for all enabled channels |
+## Project Structure
 
-### Channel Management
-
-| Command | Description |
-|---------|-------------|
-| `intu c <channel-name> [--dir] [--force]` | Shorthand to scaffold a new channel in an existing project |
-| `intu channel add <channel-name> [--dir] [--force]` | Add a new channel via the `channel` subcommand |
-| `intu channel list [--dir] [--profile] [--tag] [--group]` | List channels with optional tag/group filters |
-| `intu channel describe <id> [--dir] [--profile]` | Show the raw `channel.yaml` for a channel |
-| `intu channel clone <source> <new> [--dir]` | Clone a channel to create a new one with a different ID |
-| `intu channel export <id> [--dir] [-o file]` | Export a channel as a portable `.tar.gz` archive |
-| `intu channel import <archive> [--dir] [--force]` | Import a channel from a `.tar.gz` archive |
-
-### Deployment & Operations
-
-| Command | Description |
-|---------|-------------|
-| `intu deploy [channel-id] [--dir] [--profile] [--all] [--tag]` | Mark channels as `enabled` (deploy) |
-| `intu undeploy <channel-id> [--dir] [--profile]` | Mark a channel as `disabled` (undeploy) |
-| `intu enable <channel-id> [--dir] [--profile]` | Enable a channel (alias for `deploy` on a single channel) |
-| `intu disable <channel-id> [--dir] [--profile]` | Disable a channel (alias for `undeploy`) |
-| `intu stats [channel-id] [--dir] [--profile] [--json]` | Show channel statistics with live metrics |
-| `intu prune [--dir] [--channel\|--all] [--before] [--dry-run] [--confirm]` | Prune stored message data |
-
-### Message Browser
-
-| Command | Description |
-|---------|-------------|
-| `intu message list [--channel] [--status] [--since] [--before] [--limit] [--json]` | List messages from the store with filters |
-| `intu message get <message-id> [--json]` | Get a specific message by ID |
-| `intu message count [--channel] [--status]` | Count messages in the store |
-
-### Advanced
-
-| Command | Description |
-|---------|-------------|
-| `intu dashboard [--dir] [--profile] [--port]` | Launch the dashboard standalone (included in `intu serve` by default) |
-
-## Bootstrapped Structure
-
-```text
+```
 .
-├── intu.yaml           # Root config + named destinations
-├── intu.dev.yaml
-├── intu.prod.yaml
-├── .env
+├── intu.yaml              # Root config + named destinations
+├── intu.dev.yaml          # Dev profile overlay
+├── intu.prod.yaml         # Prod profile overlay
+├── .env                   # Environment variables
 ├── channels/
 │   └── sample-channel/
-│       ├── channel.yaml
-│       ├── transformer.ts
-│       └── validator.ts
+│       ├── channel.yaml   # Channel config (source, destinations, pipeline)
+│       ├── transformer.ts # TypeScript transformer (JSON in, JSON out)
+│       └── validator.ts   # Optional validator
 ├── lib/
-│   └── index.ts        # Shared utilities
+│   └── index.ts           # Shared utilities
 ├── package.json
 ├── tsconfig.json
 └── README.md
 ```
 
-## Destinations
+## CLI Reference
+
+All commands accept `--log-level (debug|info|warn|error)` (default: `info`).
+
+### Project & Build
+
+| Command | Description |
+|---------|-------------|
+| `intu init <name> [--dir] [--force]` | Scaffold a new project and install dependencies |
+| `intu serve [--dir] [--profile]` | Start the runtime engine (auto-compiles TypeScript) |
+| `intu validate [--dir] [--profile]` | Validate project config and channel layout |
+| `intu build [--dir]` | Compile TypeScript transformers |
+
+### Channel Management
+
+| Command | Description |
+|---------|-------------|
+| `intu c <name> [--dir] [--force]` | Add a new channel (shorthand) |
+| `intu channel list [--dir] [--tag] [--group]` | List channels |
+| `intu channel describe <id> [--dir]` | Show channel config |
+| `intu channel clone <source> <new> [--dir]` | Clone a channel |
+| `intu channel export <id> [--dir] [-o file]` | Export as `.tar.gz` |
+| `intu channel import <archive> [--dir]` | Import from `.tar.gz` |
+
+### Operations
+
+| Command | Description |
+|---------|-------------|
+| `intu deploy [id] [--dir] [--all] [--tag]` | Enable channel(s) |
+| `intu undeploy <id> [--dir]` | Disable a channel |
+| `intu stats [id] [--dir] [--json]` | Show channel statistics |
+| `intu prune [--dir] [--channel\|--all] [--before]` | Prune stored messages |
+| `intu message list [--channel] [--status] [--limit]` | Browse messages |
+| `intu message get <id> [--json]` | Get a specific message |
+| `intu dashboard [--dir] [--port]` | Launch dashboard standalone |
+
+## Sources & Destinations
+
+### Sources
+
+| Type | Description |
+|------|-------------|
+| HTTP | REST/JSON listener with auth and TLS |
+| TCP/MLLP | Raw TCP or HL7 MLLP with ACK/NACK |
+| FHIR | FHIR R4 server with capability statement |
+| Kafka | Consumer with TLS and SASL |
+| Database | SQL polling (Postgres, MySQL, MSSQL, SQLite) |
+| File | Filesystem poller with glob patterns |
+| SFTP | SFTP poller with key/password auth |
+| Email | IMAP/POP3 reader |
+| DICOM | DICOM SCP with AE title validation |
+| SOAP | SOAP/WSDL listener |
+| IHE | XDS, PIX, PDQ profiles |
+| Channel | In-memory channel-to-channel bridge |
+
+### Destinations
+
+| Type | Description |
+|------|-------------|
+| HTTP | Sender with auth (bearer, basic, OAuth2) and TLS |
+| Kafka | Producer with TLS and SASL |
+| TCP/MLLP | TCP sender with MLLP support |
+| File | Filesystem writer with templated filenames |
+| Database | SQL writer with parameterized statements |
+| SFTP | SFTP file writer |
+| SMTP | Email sender with TLS/STARTTLS |
+| Channel | In-memory routing |
+| DICOM | DICOM SCU sender |
+| JMS | JMS via HTTP REST (ActiveMQ, etc.) |
+| FHIR | FHIR R4 client for create/update/transaction |
+| Direct | Direct messaging protocol for HIE |
+| Log | Structured logging destination |
+
+### Data Types
+
+`raw` · `json` · `xml` · `csv` · `hl7v2` · `hl7v3/ccda` · `fhir_r4` · `x12` · `binary`
+
+## Destinations Config
 
 Define named destinations in `intu.yaml`:
 
@@ -148,7 +190,7 @@ destinations:
       initial_delay_ms: 500
 ```
 
-Channels reference them (multi-destination):
+Channels reference them by name (multi-destination supported):
 
 ```yaml
 destinations:
@@ -159,81 +201,13 @@ destinations:
       url: https://audit.example.com/events
 ```
 
-## Sources & Destinations
-
-All listed connectors are **fully implemented** in the current runtime.
-
-### Supported Sources (Listeners)
-
-| Type | Config Key | Description |
-|------|-----------|-------------|
-| HTTP | `listener.type: http` | JSON/REST listener with path, methods, TLS, and auth (bearer, basic, api_key, mTLS) |
-| TCP/MLLP | `listener.type: tcp` | Raw TCP or MLLP mode for HL7 over TCP, with TLS and ACK/NACK |
-| File | `listener.type: file` | Local filesystem poller with glob patterns, move/error dirs |
-| Kafka | `listener.type: kafka` | Kafka consumer with TLS, SASL auth |
-| Database | `listener.type: database` | SQL polling reader for Postgres, MySQL, MSSQL, SQLite |
-| SFTP | `listener.type: sftp` | SFTP poller with password/key auth |
-| Channel | `listener.type: channel` | In-memory channel-to-channel bridge |
-| Email | `listener.type: email` | IMAP/POP3 reader with TLS |
-| DICOM | `listener.type: dicom` | DICOM SCP with AE title validation and TLS |
-| SOAP | `listener.type: soap` | SOAP/WSDL listener with TLS and auth |
-| FHIR | `listener.type: fhir` | FHIR R4 server with capability statement and subscriptions |
-| IHE | `listener.type: ihe` | IHE profiles: XDS Repository/Registry, PIX, PDQ |
-
-### Supported Destinations
-
-| Type | Config Key | Description |
-|------|-----------|-------------|
-| HTTP | `type: http` | HTTP sender with headers, auth (bearer, basic, api_key, OAuth2), TLS |
-| Kafka | `type: kafka` | Kafka producer with TLS and SASL auth |
-| TCP/MLLP | `type: tcp` | TCP sender with MLLP support and TLS |
-| File | `type: file` | Filesystem writer with templated filenames |
-| Database | `type: database` | SQL writer with parameterized statements |
-| SFTP | `type: sftp` | SFTP file writer with auth |
-| SMTP | `type: smtp` | Email sender with TLS and STARTTLS |
-| Channel | `type: channel` | In-memory channel-to-channel routing |
-| DICOM | `type: dicom` | DICOM SCU sender with TLS |
-| JMS | `type: jms` | JMS via HTTP REST (ActiveMQ, etc.) |
-| FHIR | `type: fhir` | FHIR R4 client for create/update/transaction |
-| Direct | `type: direct` | Direct messaging protocol for HIE |
-| Log | `type: log` | Structured logging destination |
-
-## Data Types
-
-| Type | Description |
-|------|-------------|
-| `raw` | Pass-through |
-| `json` | JSON parse/serialize |
-| `xml` | XML DOM parse/serialize |
-| `csv` / `delimited` | Column-based parse/serialize |
-| `hl7v2` | HL7 v2.x segment/field/component parsing |
-| `hl7v3` / `ccda` | CDA/CCDA XML parsing |
-| `fhir_r4` | FHIR R4 JSON parsing |
-| `x12` | X12 EDI segment parsing |
-| `binary` | Base64 encode/decode |
-
-## Pipeline Stages
-
-Each channel processes messages through a configurable pipeline:
-
-```
-Source → Preprocessor → Validator → Source Filter → Transformer
-  → Destination Filter → Destination Transformer → Send
-  → Response Transformer → Postprocessor
-```
-
-All stages except the transformer are optional. Per-destination filters and transformers allow customizing the payload for each destination independently.
-
 ## Contributing
 
-Contributions (bug reports, docs, and code) are very welcome.
+Contributions are welcome — bug reports, docs, and code.
 
-- **Issues & PRs**: Open them on the GitHub repository.
-- **Maintainer contact**: `ramnish@intuware.com`
-
-If you are proposing a larger feature, please skim the [ROADMAP](ROADMAP.md) first so we can keep the design aligned.
+- **Issues & PRs**: [github.com/intuware/intu-dev](https://github.com/intuware/intu-dev)
+- **Contact**: ramnish@intuware.com
 
 ## License
 
-`intu` is licensed under the **Mozilla Public License 2.0 (MPL-2.0)**.  
-See the [`LICENSE`](LICENSE) file for the full text and details about copyleft scope.
+`intu` is licensed under the [Mozilla Public License 2.0 (MPL-2.0)](LICENSE).

@@ -2,9 +2,11 @@ package message
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 )
@@ -49,6 +51,7 @@ type Message struct {
 	Raw           []byte
 	Transport     string
 	ContentType   ContentType
+	SourceCharset string // e.g. "iso-8859-1", "utf-16le"; empty means UTF-8
 	HTTP          *HTTPMeta
 	File          *FileMeta
 	FTP           *FTPMeta
@@ -162,10 +165,20 @@ func (m *Message) CloneWithRaw(raw []byte) *Message {
 }
 
 // ToIntuJSON serializes the Message as an IntuMessage JSON envelope.
-// The body is stored as the string representation of m.Raw.
+// If Raw is valid UTF-8 the body is stored as a string; otherwise it is
+// base64-encoded to avoid data corruption in JSON.
 func (m *Message) ToIntuJSON() ([]byte, error) {
+	var body any
+	if utf8.Valid(m.Raw) {
+		body = string(m.Raw)
+	} else {
+		body = map[string]any{
+			"base64": base64.StdEncoding.EncodeToString(m.Raw),
+			"size":   len(m.Raw),
+		}
+	}
 	im := map[string]any{
-		"body":        string(m.Raw),
+		"body":        body,
 		"transport":   m.Transport,
 		"contentType": string(m.ContentType),
 	}
@@ -239,8 +252,19 @@ func FromIntuJSON(data []byte, channelID string) (*Message, error) {
 		return nil, err
 	}
 
-	bodyStr, _ := im["body"].(string)
-	msg := New(channelID, []byte(bodyStr))
+	var raw []byte
+	switch b := im["body"].(type) {
+	case string:
+		raw = []byte(b)
+	case map[string]any:
+		if encoded, ok := b["base64"].(string); ok {
+			decoded, err := base64.StdEncoding.DecodeString(encoded)
+			if err == nil {
+				raw = decoded
+			}
+		}
+	}
+	msg := New(channelID, raw)
 
 	if t, ok := im["transport"].(string); ok {
 		msg.Transport = t
@@ -282,8 +306,17 @@ func ResponseToIntuJSON(resp *Response) ([]byte, error) {
 	if resp == nil {
 		return marshalRaw(map[string]any{"body": "", "transport": "http", "contentType": "raw"})
 	}
+	var respBody any
+	if utf8.Valid(resp.Body) {
+		respBody = string(resp.Body)
+	} else {
+		respBody = map[string]any{
+			"base64": base64.StdEncoding.EncodeToString(resp.Body),
+			"size":   len(resp.Body),
+		}
+	}
 	im := map[string]any{
-		"body":        string(resp.Body),
+		"body":        respBody,
 		"transport":   "http",
 		"contentType": "raw",
 		"http": map[string]any{

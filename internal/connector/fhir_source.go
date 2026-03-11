@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	iencoding "github.com/intuware/intu-dev/internal/encoding"
 	"github.com/intuware/intu-dev/internal/message"
 	"github.com/intuware/intu-dev/pkg/config"
 )
@@ -79,6 +80,9 @@ func (f *FHIRSource) Start(ctx context.Context, handler MessageHandler) error {
 		msg := message.New("", body)
 		msg.Transport = "fhir"
 		msg.ContentType = "fhir_r4"
+		if cs := iencoding.ExtractCharset(r.Header.Get("Content-Type")); cs != "" {
+			msg.SourceCharset = iencoding.NormalizeCharset(cs)
+		}
 		msg.Metadata["source"] = "fhir"
 		msg.Metadata["fhir_version"] = version
 		msg.Metadata["http_method"] = r.Method
@@ -149,6 +153,9 @@ func (f *FHIRSource) Start(ctx context.Context, handler MessageHandler) error {
 		msg := message.New("", body)
 		msg.Transport = "fhir"
 		msg.ContentType = "fhir_r4"
+		if cs := iencoding.ExtractCharset(r.Header.Get("Content-Type")); cs != "" {
+			msg.SourceCharset = iencoding.NormalizeCharset(cs)
+		}
 		msg.Metadata["source"] = "fhir"
 		msg.Metadata["fhir_version"] = version
 		msg.Metadata["subscription_type"] = f.cfg.SubscriptionType

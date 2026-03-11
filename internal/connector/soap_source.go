@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	iencoding "github.com/intuware/intu-dev/internal/encoding"
 	"github.com/intuware/intu-dev/internal/message"
 	"github.com/intuware/intu-dev/pkg/config"
 )
@@ -80,6 +81,9 @@ func (s *SOAPSource) Start(ctx context.Context, handler MessageHandler) error {
 		msg := message.New("", body)
 		msg.Transport = "soap"
 		msg.ContentType = "xml"
+		if cs := iencoding.ExtractCharset(r.Header.Get("Content-Type")); cs != "" {
+			msg.SourceCharset = iencoding.NormalizeCharset(cs)
+		}
 		msg.Metadata["source"] = "soap"
 		msg.Metadata["service_name"] = serviceName
 		msg.Metadata["soap_action"] = strings.Trim(soapAction, "\"")

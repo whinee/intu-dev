@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	iencoding "github.com/intuware/intu-dev/internal/encoding"
 	"github.com/intuware/intu-dev/internal/message"
 	"github.com/intuware/intu-dev/pkg/config"
 )
@@ -195,6 +196,9 @@ func (i *IHESource) handleIHERequest(w http.ResponseWriter, r *http.Request, han
 	msg := message.New("", body)
 	msg.Transport = "ihe"
 	msg.ContentType = "xml"
+	if cs := iencoding.ExtractCharset(r.Header.Get("Content-Type")); cs != "" {
+		msg.SourceCharset = iencoding.NormalizeCharset(cs)
+	}
 	msg.Metadata["source"] = "ihe"
 	msg.Metadata["ihe_profile"] = profile
 	msg.Metadata["ihe_transaction"] = transaction

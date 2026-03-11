@@ -8,8 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/intuware/intu-dev/internal/datatype"
+	iencoding "github.com/intuware/intu-dev/internal/encoding"
 	"github.com/intuware/intu-dev/internal/message"
 	"github.com/intuware/intu-dev/internal/storage"
 	"github.com/intuware/intu-dev/pkg/config"
@@ -107,6 +109,18 @@ func (p *Pipeline) Execute(ctx context.Context, msg *message.Message) (*Pipeline
 		),
 	)
 	defer span.End()
+
+	// Transcode from source charset to UTF-8 so parsers and JSON
+	// serialization (to Node.js) receive valid UTF-8 text.
+	if msg.SourceCharset != "" || !isValidUTF8(msg.Raw) {
+		transcoded, err := iencoding.ToUTF8(msg.Raw, msg.SourceCharset)
+		if err != nil {
+			p.logger.Warn("charset transcoding failed, using raw bytes", "charset", msg.SourceCharset, "error", err)
+		} else {
+			msg.Raw = transcoded
+			msg.SourceCharset = "" // now UTF-8
+		}
+	}
 
 	var current any = string(msg.Raw)
 
@@ -361,7 +375,11 @@ func (p *Pipeline) ExecuteResponseTransformer(ctx context.Context, msg *message.
 		"headers":    resp.Headers,
 	}
 	if resp.Body != nil {
-		respData["body"] = string(resp.Body)
+		if utf8.Valid(resp.Body) {
+			respData["body"] = string(resp.Body)
+		} else {
+			respData["body"] = string(ensureValidUTF8(resp.Body))
+		}
 	}
 	if resp.Error != nil {
 		respData["error"] = resp.Error.Error()
@@ -789,4 +807,28 @@ func (p *Pipeline) toBytes(data any) []byte {
 		}
 		return b
 	}
+}
+
+func isValidUTF8(data []byte) bool {
+	return utf8.Valid(data)
+}
+
+// ensureValidUTF8 replaces invalid UTF-8 sequences with U+FFFD. Used as a
+// last-resort safeguard when transcoding didn't happen upstream.
+func ensureValidUTF8(data []byte) []byte {
+	if utf8.Valid(data) {
+		return data
+	}
+	out := make([]byte, 0, len(data))
+	for len(data) > 0 {
+		r, size := utf8.DecodeRune(data)
+		if r == utf8.RuneError && size <= 1 {
+			out = append(out, []byte(string(utf8.RuneError))...)
+			data = data[1:]
+		} else {
+			out = append(out, data[:size]...)
+			data = data[size:]
+		}
+	}
+	return out
 }

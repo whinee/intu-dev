@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	iencoding "github.com/intuware/intu-dev/internal/encoding"
 	"github.com/intuware/intu-dev/internal/message"
 	"github.com/intuware/intu-dev/pkg/config"
 )
@@ -69,6 +70,9 @@ func (h *HTTPSource) Start(ctx context.Context, handler MessageHandler) error {
 
 		msg := message.New("", body)
 		msg.Transport = "http"
+		if cs := iencoding.ExtractCharset(r.Header.Get("Content-Type")); cs != "" {
+			msg.SourceCharset = iencoding.NormalizeCharset(cs)
+		}
 		http_ := msg.EnsureHTTP()
 		for k, v := range r.Header {
 			if len(v) > 0 {

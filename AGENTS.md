@@ -2,7 +2,7 @@
 
 ## Cursor Cloud specific instructions
 
-**Product**: `intu` is a Go-based healthcare interoperability engine. It scaffolds projects, manages channels, validates config, compiles TypeScript transformers, and runs a runtime engine with a web dashboard. Think of it as an open alternative to Mirth Connect.
+**Product**: `intu` is a Go-based healthcare interoperability engine. It scaffolds projects, manages channels, validates config, compiles TypeScript transformers, and runs a runtime engine with a web dashboard. 
 
 **Prerequisites**: Go 1.25+ and Node.js >= 18 (with npm). The `intu-dev` npm package must be installed globally for the Node.js runtime (`npm install -g intu-dev`). No external services are needed for development or testing — the default config uses in-memory storage and standalone mode.
 

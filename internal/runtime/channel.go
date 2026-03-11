@@ -212,6 +212,8 @@ func (cr *ChannelRuntime) handleMessage(ctx context.Context, msg *message.Messag
 	transformedMsg := result.OutputMsg
 	if transformedMsg == nil {
 		transformedMsg = msg.CloneWithRaw(result.OutputBytes)
+	} else if len(transformedMsg.Raw) == 0 && len(result.OutputBytes) > 0 {
+		transformedMsg.Raw = result.OutputBytes
 	}
 	cr.storeIntuMessage(transformedMsg, "transformed", "TRANSFORMED")
 

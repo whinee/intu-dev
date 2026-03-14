@@ -4,8 +4,12 @@
 
   var NAV = [
     { title: 'Getting Started', href: '/index.html', id: 'getting-started' },
-    { title: 'CLI Reference', href: '/cli.html', id: 'cli' },
+    { title: 'Examples', href: '/examples.html', id: 'examples' },
     { title: 'Configuration', href: '/configuration.html', id: 'configuration' },
+    { title: 'Pipeline & Runtime', href: '/pipeline.html', id: 'pipeline' },
+    { title: 'IntuMessage', href: '/intumessage.html', id: 'intumessage' },
+    { title: 'Transformers', href: '/transformers.html', id: 'transformers' },
+    { title: 'Validators', href: '/validators.html', id: 'validators' },
     {
       title: 'Sources',
       id: 'sources',
@@ -24,9 +28,6 @@
         { title: 'IHE', href: '/sources/ihe.html', id: 'source-ihe' }
       ]
     },
-    { title: 'IntuMessage', href: '/intumessage.html', id: 'intumessage' },
-    { title: 'Validators', href: '/validators.html', id: 'validators' },
-    { title: 'Transformers', href: '/transformers.html', id: 'transformers' },
     {
       title: 'Destinations',
       id: 'destinations',
@@ -45,6 +46,9 @@
         { title: 'Direct', href: '/destinations/direct.html', id: 'dest-direct' }
       ]
     },
+    { title: 'CLI Reference', href: '/cli.html', id: 'cli' },
+    { title: 'Dashboard', href: '/dashboard.html', id: 'dashboard' },
+    { title: 'Deployment', href: '/deployment.html', id: 'deployment' },
     { title: 'Schema Reference', href: '/schema.html', id: 'schema' },
     { title: 'Contributing', href: '/contributing.html', id: 'contributing' }
   ];

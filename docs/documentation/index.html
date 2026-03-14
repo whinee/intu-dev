@@ -136,6 +136,15 @@ npm run dev</code></pre>
                 </tbody>
             </table>
 
+            <h2>Architecture Overview</h2>
+            <p>
+                Messages flow through a defined pipeline: source &rarr; preprocessor &rarr; validator &rarr;
+                filter &rarr; transformer &rarr; destination(s). Each stage is optional and configurable per channel.
+            </p>
+            <div style="margin:24px 0;">
+                <img src="../architecture.svg" alt="intu architecture diagram showing the pipeline from source to destination" style="width:100%;border-radius:8px;">
+            </div>
+
             <h2>Core Concepts</h2>
 
             <div class="prop-list">
@@ -258,9 +267,27 @@ npm run dev</code></pre>
                     </a>
                 </div>
                 <div class="card">
+                    <a href="dashboard.html">
+                        <h3>Dashboard</h3>
+                        <p>Web-based monitoring UI, REST API, channel management, and message browser.</p>
+                    </a>
+                </div>
+                <div class="card">
+                    <a href="pipeline.html">
+                        <h3>Pipeline &amp; Runtime</h3>
+                        <p>Error handling, retry, batch processing, hot reload, and data types.</p>
+                    </a>
+                </div>
+                <div class="card">
                     <a href="sources/http.html">
                         <h3>Sources</h3>
                         <p>Learn how to configure message sources for your channels.</p>
+                    </a>
+                </div>
+                <div class="card">
+                    <a href="deployment.html">
+                        <h3>Deployment</h3>
+                        <p>PostgreSQL, Kafka, Redis, Docker, TLS, auth, and observability setup.</p>
                     </a>
                 </div>
                 <div class="card">
@@ -279,7 +306,7 @@ npm run dev</code></pre>
 
             <div class="docs-footer">
                 <span></span>
-                <a href="cli.html">CLI Reference &rarr;</a>
+                <a href="examples.html">Examples &rarr;</a>
             </div>
         </div>
     </main>

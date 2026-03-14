@@ -458,6 +458,105 @@
         "isolation": { "type": "string", "enum": ["shared", "isolated"] },
         "tenant_header": { "type": "string", "description": "HTTP header for tenant identification" }
       }
+    },
+    "dashboard": {
+      "type": "object",
+      "description": "Web dashboard configuration",
+      "properties": {
+        "enabled": { "type": "boolean", "description": "Enable the web dashboard" },
+        "port": { "type": "integer", "description": "Dashboard port (default: 3000)" },
+        "auth": {
+          "type": "object",
+          "description": "Dashboard authentication settings",
+          "properties": {
+            "provider": {
+              "type": "string",
+              "enum": ["basic", "oidc", "ldap", "none"],
+              "description": "Authentication provider"
+            },
+            "username": { "type": "string", "description": "Basic auth username" },
+            "password": { "type": "string", "description": "Basic auth password" },
+            "disable_login_page": { "type": "boolean", "description": "Disable the login page (API-only auth)" }
+          }
+        }
+      }
+    },
+    "code_templates": {
+      "type": "array",
+      "description": "Shared code template libraries available to channels",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "description": "Template library name" },
+          "directory": { "type": "string", "description": "Path to the template directory" },
+          "channels": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Channels that can use this template library (empty = all)"
+          }
+        },
+        "required": ["name", "directory"]
+      }
+    },
+    "logging": {
+      "type": "object",
+      "description": "External log transport configuration",
+      "properties": {
+        "transports": {
+          "type": "array",
+          "description": "Log transport destinations",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["cloudwatch", "datadog", "sumologic", "elasticsearch", "file"],
+                "description": "Transport type"
+              },
+              "cloudwatch": {
+                "type": "object",
+                "properties": {
+                  "region": { "type": "string" },
+                  "log_group": { "type": "string" },
+                  "log_stream": { "type": "string" }
+                }
+              },
+              "datadog": {
+                "type": "object",
+                "properties": {
+                  "api_key": { "type": "string" },
+                  "site": { "type": "string" }
+                }
+              },
+              "sumologic": {
+                "type": "object",
+                "properties": {
+                  "endpoint": { "type": "string" }
+                }
+              },
+              "elasticsearch": {
+                "type": "object",
+                "properties": {
+                  "url": { "type": "string" },
+                  "index": { "type": "string" },
+                  "username": { "type": "string" },
+                  "password": { "type": "string" }
+                }
+              },
+              "file": {
+                "type": "object",
+                "properties": {
+                  "path": { "type": "string" },
+                  "max_size_mb": { "type": "integer" },
+                  "max_backups": { "type": "integer" },
+                  "max_age_days": { "type": "integer" }
+                }
+              }
+            },
+            "required": ["type"]
+          }
+        }
+      }
     }
   },
   "definitions": {

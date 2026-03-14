@@ -34,7 +34,7 @@
     driver: memory
     postgres_dsn: ${INTU_POSTGRES_DSN}
 
-channels_dir: channels
+channels_dir: src/channels
 
 destinations:
   kafka-output:
@@ -87,7 +87,7 @@ kafka:
             <h3>channels_dir</h3>
             <p>
                 Path to the directory containing channel subdirectories, relative to the project root.
-                Defaults to <code>channels</code>.
+                Defaults to <code>src/channels</code>.
             </p>
 
             <h3>destinations</h3>
@@ -107,8 +107,8 @@ kafka:
   file-archive:
     type: file
     file:
-      path: /data/archive
-      format: json</code></pre>
+      directory: /data/archive
+      filename_pattern: "${messageId}.json"</code></pre>
             </div>
 
             <h3>kafka</h3>
@@ -253,7 +253,7 @@ INTU_POSTGRES_DSN=postgres://user:pass@localhost:5432/intu</code></pre>
                     </tr>
                     <tr>
                         <td><code>direct</code></td>
-                        <td>Invoke a function or script directly</td>
+                        <td>Send messages via Direct Secure Messaging (S/MIME encrypted SMTP for healthcare)</td>
                     </tr>
                 </tbody>
             </table>
@@ -270,14 +270,14 @@ INTU_POSTGRES_DSN=postgres://user:pass@localhost:5432/intu</code></pre>
       headers:
         Authorization: Bearer ${API_TOKEN}
         Content-Type: application/json
-      timeout: 30s
+      timeout_ms: 30000
 
   hl7-receiver:
     type: tcp
     tcp:
       host: 192.168.1.100
       port: 2575
-      mllp: true
+      mode: mllp
 
   fhir-server:
     type: fhir
@@ -491,7 +491,6 @@ docker-compose up --build
             <div class="code-block">
                 <div class="code-block-header"><span class="code-block-lang">yaml</span></div>
                 <pre><code>id: adt-inbound
-name: ADT Inbound
 description: Receives ADT messages via MLLP and routes to Kafka
 enabled: true
 profiles:
@@ -502,14 +501,16 @@ tags:
   - adt
 group: inbound
 
-source:
+listener:
   type: tcp
   tcp:
     port: 2575
-    mllp: true
+    mode: mllp
 
-transformer: transformer.ts
-validator: validator.ts
+transformer:
+  entrypoint: transformer.ts
+validator:
+  entrypoint: validator.ts
 
 destinations:
   - kafka-output</code></pre>
@@ -522,8 +523,8 @@ destinations:
             </ul>
 
             <div class="docs-footer">
-                <a href="cli.html">&larr; CLI Reference</a>
-                <a href="schema.html">Schema Reference &rarr;</a>
+                <a href="examples.html">&larr; Examples</a>
+                <a href="pipeline.html">Pipeline &amp; Runtime &rarr;</a>
             </div>
         </div>
     </main>

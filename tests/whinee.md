@@ -886,7 +886,7 @@ Output:
 ```txt
 ```
 
-### TC-013: 
+### TC-013: PASS
 
 Command:
 
@@ -902,14 +902,137 @@ Output:
 Command:
 
 ```sh
-
+'/home/lyra/systems/P01 Lyra Personal/40-49 Hardware and Software/41 Software Projects/41.31 intu/intu' serve --dir .
 ```
 
 Output:
 
 ```txt
+{"time":"2026-03-15T09:21:41.735406882+08:00","level":"INFO","msg":"building TypeScript channels"}
 
+> intu-channel-runtime@0.1.0 build
+> tsc -p tsconfig.json
+
+{"time":"2026-03-15T09:21:43.035795404+08:00","level":"INFO","msg":"build complete"}
+{"time":"2026-03-15T09:21:43.036475123+08:00","level":"INFO","msg":"config loaded","name":"intu","profile":"dev"}
+{"time":"2026-03-15T09:21:43.036491813+08:00","level":"INFO","msg":"secrets provider initialized","provider":"env"}
+{"time":"2026-03-15T09:21:43.036502713+08:00","level":"INFO","msg":"message store initialized","driver":"memory","mode":"full"}
+{"time":"2026-03-15T09:21:43.036508853+08:00","level":"INFO","msg":"audit logger initialized","destination":"memory"}
+{"time":"2026-03-15T09:21:43.036526333+08:00","level":"INFO","msg":"starting engine","name":"intu"}
+{"time":"2026-03-15T09:21:43.037610551+08:00","level":"INFO","msg":"node worker pool started","pool_size":4}
+{"time":"2026-03-15T09:21:43.038415859+08:00","level":"INFO","msg":"starting channel","id":"fhir-to-adt"}
+{"time":"2026-03-15T09:21:43.038720109+08:00","level":"INFO","msg":"FHIR source started","addr":":8082","base_path":"/fhir/r4","version":"R4","tls":false}
+{"time":"2026-03-15T09:21:43.038732069+08:00","level":"INFO","msg":"channel started","id":"fhir-to-adt"}
+{"time":"2026-03-15T09:21:43.038741199+08:00","level":"INFO","msg":"starting channel","id":"http-clone"}
+{"time":"2026-03-15T09:21:43.038798839+08:00","level":"ERROR","msg":"failed to start channel","id":"http-clone","error":"listen on :8082: listen tcp :8082: bind: address already in use"}
+{"time":"2026-03-15T09:21:43.038815709+08:00","level":"INFO","msg":"starting channel","id":"http-to-file"}
+{"time":"2026-03-15T09:21:43.038857049+08:00","level":"INFO","msg":"shared HTTP listener started","addr":":8081","tls":false}
+{"time":"2026-03-15T09:21:43.038870068+08:00","level":"INFO","msg":"HTTP channel registered","port":8081,"path":"/ingest"}
+{"time":"2026-03-15T09:21:43.038876998+08:00","level":"INFO","msg":"channel started","id":"http-to-file"}
+{"time":"2026-03-15T09:21:43.250123234+08:00","level":"INFO","msg":"engine started","channels":2,"mode":"standalone"}
+{"time":"2026-03-15T09:21:43.250358494+08:00","level":"INFO","msg":"channel hot-reload enabled","dir":"src/channels"}
+{"time":"2026-03-15T09:21:43.250493224+08:00","level":"INFO","msg":"dashboard listening","addr":"[::]:3000"}
+Dashboard running on http://localhost:3000 (auth: basic)
+intu engine running. Press Ctrl+C to stop.
 ```
+
+Command:
+
+```sh
+curl localhost:3000
+```
+
+Output:
+
+```txt
+<a href="/login">Found</a>.
+```
+
+URL:
+
+```url
+http://localhost:3000
+```
+
+Browser:
+
+![](whinee/Pasted%20image%2020260315091804.png)
+
+Logging in with the credentials `admin:admin` leads to the following page:
+
+![](whinee/Pasted%20image%2020260315092618.png)
+### TC-014: IN PROGRESS
+
+Command:
+
+```sh
+cd /tmp/intu/demo
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+'/home/lyra/systems/P01 Lyra Personal/40-49 Hardware and Software/41 Software Projects/41.31 intu/intu' serve --dir . --profile dev
+```
+
+Output:
+
+```txt
+{"time":"2026-03-15T09:11:11.362282007+08:00","level":"INFO","msg":"building TypeScript channels"}
+
+
+> intu-channel-runtime@0.1.0 build
+> tsc -p tsconfig.json
+
+{"time":"2026-03-15T09:11:12.372915504+08:00","level":"INFO","msg":"build complete"}
+{"time":"2026-03-15T09:11:12.374295872+08:00","level":"INFO","msg":"config loaded","name":"intu","profile":"dev"}
+{"time":"2026-03-15T09:11:12.374316741+08:00","level":"INFO","msg":"secrets provider initialized","provider":"env"}
+{"time":"2026-03-15T09:11:12.374326791+08:00","level":"INFO","msg":"message store initialized","driver":"memory","mode":"full"}
+{"time":"2026-03-15T09:11:12.374333421+08:00","level":"INFO","msg":"audit logger initialized","destination":"memory"}
+{"time":"2026-03-15T09:11:12.374348921+08:00","level":"INFO","msg":"starting engine","name":"intu"}
+{"time":"2026-03-15T09:11:12.375431379+08:00","level":"INFO","msg":"node worker pool started","pool_size":4}
+{"time":"2026-03-15T09:11:12.375742889+08:00","level":"INFO","msg":"starting channel","id":"fhir-to-adt"}
+{"time":"2026-03-15T09:11:12.375985018+08:00","level":"INFO","msg":"FHIR source started","addr":":8082","base_path":"/fhir/r4","version":"R4","tls":false}
+{"time":"2026-03-15T09:11:12.375998728+08:00","level":"INFO","msg":"channel started","id":"fhir-to-adt"}
+{"time":"2026-03-15T09:11:12.376006618+08:00","level":"INFO","msg":"starting channel","id":"http-clone"}
+{"time":"2026-03-15T09:11:12.376057378+08:00","level":"ERROR","msg":"failed to start channel","id":"http-clone","error":"listen on :8082: listen tcp :8082: bind: address already in use"}
+{"time":"2026-03-15T09:11:12.376069888+08:00","level":"INFO","msg":"starting channel","id":"http-to-file"}
+{"time":"2026-03-15T09:11:12.376106638+08:00","level":"INFO","msg":"shared HTTP listener started","addr":":8081","tls":false}
+{"time":"2026-03-15T09:11:12.376128328+08:00","level":"INFO","msg":"HTTP channel registered","port":8081,"path":"/ingest"}
+{"time":"2026-03-15T09:11:12.376138188+08:00","level":"INFO","msg":"channel started","id":"http-to-file"}
+{"time":"2026-03-15T09:11:12.582379586+08:00","level":"INFO","msg":"engine started","channels":2,"mode":"standalone"}
+{"time":"2026-03-15T09:11:12.582604556+08:00","level":"INFO","msg":"channel hot-reload enabled","dir":"src/channels"}
+{"time":"2026-03-15T09:11:12.582757145+08:00","level":"INFO","msg":"dashboard listening","addr":"[::]:3000"}
+Dashboard running on http://localhost:3000 (auth: basic)
+intu engine running. Press Ctrl+C to stop.
+```
+
+Command:
+
+```sh
+curl localhost:3000
+```
+
+Output:
+
+```txt
+<a href="/login">Found</a>.
+```
+
+URL:
+
+```url
+http://localhost:3000
+```
+
+Browser:
+
+![](whinee/Pasted%20image%2020260315091804.png)
 
 ---
 

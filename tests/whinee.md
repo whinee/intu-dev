@@ -1224,9 +1224,80 @@ curl -X POST 'localhost:8081/ingest' --header 'Content-Type: text/plain' -
 Output:
 
 ```txt
-curl -X POST 'localhost:8081/ingest' --header 'Content-Type: text/plain' -
--data-raw 'This is a test message!'
+curl: (7) Failed to connect to localhost port 8081 after 1 ms: Could not connect to server
 ```
+
+### TC-016: PASS
+
+Command:
+
+```sh
+cd /tmp/intu/demo
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+'/home/lyra/systems/P01 Lyra Personal/40-49 Hardware and Software/41 Software Projects/41.31 intu/intu' serve --dir . --profile dev
+```
+
+Output:
+
+```txt
+{"time":"2026-03-15T09:11:11.362282007+08:00","level":"INFO","msg":"building TypeScript channels"}
+...
+Dashboard running on http://localhost:3000 (auth: basic)
+intu engine running. Press Ctrl+C to stop.
+...
+{"time":"2026-03-15T10:00:06.152939069+08:00","level":"INFO","msg":"channel config changed, reloading","channel":"http-to-file"}
+{"time":"2026-03-15T10:00:06.253287815+08:00","level":"INFO","msg":"channel disabled, not starting","channel":"http-to-file"}
+{"time":"2026-03-15T10:04:34.657402147+08:00","level":"INFO","msg":"channel config changed, reloading","channel":"http-to-file"}
+{"time":"2026-03-15T10:04:34.757709953+08:00","level":"INFO","msg":"starting channel","id":"http-to-file"}
+{"time":"2026-03-15T10:04:34.757804773+08:00","level":"INFO","msg":"shared HTTP listener started","addr":":8081","tls":false}
+{"time":"2026-03-15T10:04:34.757820423+08:00","level":"INFO","msg":"HTTP channel registered","port":8081,"path":"/ingest"}
+{"time":"2026-03-15T10:04:34.757825353+08:00","level":"INFO","msg":"channel hot-reloaded","channel":"http-to-file"}
+```
+
+Clicking the `Channels` tab in the dashboard yields the following screen:
+
+![](whinee/Pasted%20image%2020260315095927.png)
+
+Command:
+
+```sh
+'/home/lyra/systems/P01 Lyra Personal/40-49 Hardware and Software/41 Software Projects/41.31 intu/intu' disable http-to-file --dir .
+```
+
+Output:
+
+```txt
+Disabled: http-to-file
+```
+
+Refreshing the page, we can now see that the `http-to-file` channel is now disabled.
+
+![](whinee/Pasted%20image%2020260315100205.png)
+
+Command:
+
+```sh
+'/home/lyra/systems/P01 Lyra Personal/40-49 Hardware and Software/41 Software Projects/41.31 intu/intu' enable http-to-file --dir .
+```
+
+Output:
+
+```txt
+Enabled: http-to-file
+```
+
+Refreshing the page, we can now see that the `http-to-file` channel is now enabled.
+
+![](whinee/Pasted%20image%2020260315100522.png)
 
 ---
 

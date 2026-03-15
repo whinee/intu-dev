@@ -28,6 +28,8 @@ sudo dnf install -y golang
 go build -o intu .
 ```
 
+The built binary was located in `'/home/lyra/systems/P01 Lyra Personal/40-49 Hardware and Software/41 Software Projects/41.31 intu/intu'` in the tester's machine.
+
 ## Tests
 
 ### TC-001: PASS
@@ -630,6 +632,283 @@ Output:
 ```txt
   error: duplicate listener: channels "http-clone" and "http-to-file" both use port 8081 path "/ingest"
 validation failed: 1 error(s)
+```
+
+### TC-011: PASS
+
+Command:
+
+```sh
+cd /tmp/intu/demo
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+'/home/lyra/systems/P01 Lyra Personal/40-49 Hardware and Software/41 Software Projects/41.31 intu/intu' channel clone http-to-file http-clone --dir .
+```
+
+Output:
+
+```txt
+Cloned channel "http-to-file" -> "http-clone" (3 files)
+```
+
+Command:
+
+```sh
+tee /tmp/intu/demo/src/channels/http-clone/channel.yaml > /dev/null <<'EOF'
+id: http-clone
+enabled: true
+profiles:
+  - dev
+description: "Receives HTTP messages, validates, transforms, and writes to file"
+
+listener:
+  type: http
+  http:
+    port: 8082
+    path: /ingest
+
+validator:
+  entrypoint: validator.ts
+
+transformer:
+  entrypoint: transformer.ts
+
+destinations:
+  - file-output
+EOF
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+ls /tmp/intu/demo/src/channels/
+```
+
+Output:
+
+```txt
+fhir-to-adt  http-clone  http-to-file
+```
+
+Command:
+
+```sh
+'/home/lyra/systems/P01 Lyra Personal/40-49 Hardware and Software/41 Software Projects/41.31 intu/intu' validate --profile prod
+```
+
+Output:
+
+```txt
+Validation passed: 2 channel(s), profile=prod
+```
+
+### TC-012: PASS
+
+Command:
+
+```sh
+cd /tmp/intu/demo
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+'/home/lyra/systems/P01 Lyra Personal/40-49 Hardware and Software/41 Software Projects/41.31 intu/intu' build --dir .
+```
+
+Output:
+
+```txt
+Validation passed: 3 channel(s), profile=dev
+
+> intu-channel-runtime@0.1.0 build
+> tsc -p tsconfig.json
+
+Build complete.
+```
+
+Command:
+
+```sh
+ls -1 /tmp/intu/demo/
+```
+
+Output:
+
+```txt
+dist
+docker-compose.yml
+Dockerfile
+intu.dev.yaml
+intu.prod.yaml
+intu.yaml
+node_modules
+package.json
+package-lock.json
+README.md
+src
+tsconfig.json
+```
+
+Command:
+
+```sh
+ls -1 /tmp/intu/demo/dist
+```
+
+Output:
+
+```txt
+src
+```
+
+Command:
+
+```sh
+ls -1 /tmp/intu/demo/dist/src
+```
+
+Output:
+
+```txt
+channels
+```
+
+Command:
+
+```sh
+ls -1 /tmp/intu/demo/dist/src/channels
+```
+
+Output:
+
+```txt
+fhir-to-adt
+http-clone
+http-to-file
+```
+
+Command:
+
+```sh
+ls -1 /tmp/intu/demo/dist/src/channels/http-clone
+```
+
+Output:
+
+```txt
+transformer.js
+validator.js
+```
+
+Command:
+
+```sh
+tee /tmp/intu/demo/src/channels/http-clone/transformer.ts > /dev/null <<'EOF'
+ function transform(msg: IntuMessage, ctx: IntuContext): IntuMessage {
+  return {
+    body: {
+      ...(msg.body as object),
+      processedAt: new Date().toISOString(),
+      source: ctx.channelId,
+    },
+  };
+}a
+EOF
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+'/home/lyra/systems/P01 Lyra Personal/40-49 Hardware and Software/41 Software Projects/41.31 intu/intu' build --dir .
+```
+
+Output:
+
+```txt
+Validation passed: 3 channel(s), profile=dev
+
+> intu-channel-runtime@0.1.0 build
+> tsc -p tsconfig.json
+
+src/channels/http-clone/transformer.ts:9:2 - error TS2304: Cannot find name 'a'.
+
+9 }a
+   ~
+
+
+Found 1 error in src/channels/http-clone/transformer.ts:9
+
+npm run build: exit status 2
+```
+
+Command:
+
+```sh
+tee /tmp/intu/demo/src/channels/http-clone/transformer.ts > /dev/null <<'EOF'
+ function transform(msg: IntuMessage, ctx: IntuContext): IntuMessage {
+  return {
+    body: {
+      ...(msg.body as object),
+      processedAt: new Date().toISOString(),
+      source: ctx.channelId,
+    },
+  };
+}
+EOF
+```
+
+Output:
+
+```txt
+```
+
+### TC-013: 
+
+Command:
+
+```sh
+cd /tmp/intu/demo
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+
+```
+
+Output:
+
+```txt
+
 ```
 
 ---

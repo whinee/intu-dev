@@ -1033,6 +1033,200 @@ http://localhost:3000
 Browser:
 
 ![](whinee/Pasted%20image%2020260315091804.png)
+### TC-015: PASS
+
+Command:
+
+```sh
+cd /tmp/intu/demo
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+'/home/lyra/systems/P01 Lyra Personal/40-49 Hardware and Software/41 Software Projects/41.31 intu/intu' serve --dir . --profile dev
+```
+
+Output:
+
+```txt
+{"time":"2026-03-15T09:11:11.362282007+08:00","level":"INFO","msg":"building TypeScript channels"}
+...
+Dashboard running on http://localhost:3000 (auth: basic)
+intu engine running. Press Ctrl+C to stop.
+{"time":"2026-03-15T09:38:00.924897713+08:00","level":"INFO","msg":"channel config changed, reloading","channel":"http-to-file"}
+{"time":"2026-03-15T09:38:00.924916673+08:00","level":"INFO","msg":"stopping channel","id":"http-to-file"}
+{"time":"2026-03-15T09:38:00.924966973+08:00","level":"INFO","msg":"shared HTTP listener stopped","port":8081}
+{"time":"2026-03-15T09:38:00.924974103+08:00","level":"INFO","msg":"channel stopped for hot-reload","channel":"http-to-file"}
+{"time":"2026-03-15T09:38:01.025272342+08:00","level":"INFO","msg":"starting channel","id":"http-to-file"}
+{"time":"2026-03-15T09:38:01.025344522+08:00","level":"INFO","msg":"shared HTTP listener started","addr":":8081","tls":false}
+{"time":"2026-03-15T09:38:01.025352582+08:00","level":"INFO","msg":"HTTP channel registered","port":8081,"path":"/ingest"}
+{"time":"2026-03-15T09:38:01.025358332+08:00","level":"INFO","msg":"channel hot-reloaded","channel":"http-to-file"}
+{"time":"2026-03-15T09:46:26.434916519+08:00","level":"INFO","msg":"message received","channel":"http-to-file","messageId":"51d30c5b-730a-4930-8896-0b259fa1a742","correlationId":"51d30c5b-730a-4930-8896-0b259fa1a742"}
+{"time":"2026-03-15T09:46:26.44389454+08:00","level":"INFO","msg":"script executed","channel":"http-to-file","function":"validate","file":"validator.ts","duration_ms":8.881}
+{"time":"2026-03-15T09:46:26.44443762+08:00","level":"INFO","msg":"script executed","channel":"http-to-file","function":"transform","file":"transformer.ts","duration_ms":0.492}
+{"time":"2026-03-15T09:46:26.449370485+08:00","level":"INFO","msg":"message processed","channel":"http-to-file","messageId":"51d30c5b-730a-4930-8896-0b259fa1a742","correlationId":"51d30c5b-730a-4930-8896-0b259fa1a742","durationMs":14,"destinations":1}
+```
+
+Command:
+
+```sh
+'/home/lyra/systems/P01 Lyra Personal/40-49 Hardware and Software/41 Software Projects/41.31 intu/intu' deploy http-to-file --dir .
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+ls -1 /tmp/intu/demo
+```
+
+Output:
+
+```txt
+dist
+docker-compose.yml
+Dockerfile
+intu.dev.yaml
+intu.prod.yaml
+intu.yaml
+node_modules
+package.json
+package-lock.json
+README.md
+src
+tsconfig.json
+```
+
+Command:
+
+```sh
+curl -X POST 'localhost:8081/ingest' --header 'Content-Type: text/plain' -
+-data-raw 'This is a test message!'
+```
+
+Output:
+
+```txt
+{"status":"accepted"}
+```
+
+Command:
+
+```sh
+ls -1 /tmp/intu/demo
+```
+
+Output:
+
+```txt
+dist
+docker-compose.yml
+Dockerfile
+intu.dev.yaml
+intu.prod.yaml
+intu.yaml
+node_modules
+output
+package.json
+package-lock.json
+README.md
+src
+tsconfig.json
+```
+
+Command:
+
+```sh
+ls -1 /tmp/intu/demo/output
+```
+
+Output:
+
+```txt
+http-to-file_51d30c5b-730a-4930-8896-0b259fa1a742_20260315T094626.json
+```
+
+Command:
+
+```sh
+cat /tmp/intu/demo/output/http-to-file_51d30c5b-730a-4930-8896-0b259fa1a74
+2_20260315T094626.json
+```
+
+Output:
+
+```txt
+{"0":"T","1":"h","10":"t","11":"e","12":"s","13":"t","14":" ","15":"m","16":"e","17":"s","18":"s","19":"a","2":"i","20":"g","21":"e","22":"!","3":"s","4":" ","5":"i","6":"s","7":" ","8":"a","9":" ","processedAt":"2026-03-15T01:46:26.444Z","source":"http-to-file"}
+```
+
+### TC-016: PASS
+
+Command:
+
+```sh
+cd /tmp/intu/demo
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+'/home/lyra/systems/P01 Lyra Personal/40-49 Hardware and Software/41 Software Projects/41.31 intu/intu' serve --dir . --profile dev
+```
+
+Output:
+
+```txt
+{"time":"2026-03-15T09:11:11.362282007+08:00","level":"INFO","msg":"building TypeScript channels"}
+...
+Dashboard running on http://localhost:3000 (auth: basic)
+intu engine running. Press Ctrl+C to stop.
+...
+{"time":"2026-03-15T09:50:20.909873316+08:00","level":"INFO","msg":"channel config changed, reloading","channel":"http-to-file"}
+{"time":"2026-03-15T09:50:20.909918056+08:00","level":"INFO","msg":"stopping channel","id":"http-to-file"}
+{"time":"2026-03-15T09:50:20.910038136+08:00","level":"INFO","msg":"shared HTTP listener stopped","port":8081}
+{"time":"2026-03-15T09:50:20.910052036+08:00","level":"INFO","msg":"channel stopped for hot-reload","channel":"http-to-file"}
+{"time":"2026-03-15T09:50:21.010396512+08:00","level":"INFO","msg":"channel disabled, not starting","channel":"http-to-file"}
+```
+
+Command:
+
+```sh
+'/home/lyra/systems/P01 Lyra Personal/40-49 Hardware and Software/41 Software Projects/41.31 intu/intu' undeploy http-to-file --dir .
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+curl -X POST 'localhost:8081/ingest' --header 'Content-Type: text/plain' -
+-data-raw 'This is a test message!'
+```
+
+Output:
+
+```txt
+curl -X POST 'localhost:8081/ingest' --header 'Content-Type: text/plain' -
+-data-raw 'This is a test message!'
+```
 
 ---
 

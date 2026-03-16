@@ -1782,58 +1782,180 @@ Opening a browser and going to `localhost:4000` yields the following screen:
 
 ![](whinee/Pasted%20image%2020260316162342.png)
 
-## TC-082: IN PROGRESS
+### TC-027: PASS
+
+Command:
 
 ```sh
-tee /tmp/intu/demo/intu.yaml > /dev/null <<'EOF'
-runtime:
-  name: intu
-  profile: dev
-  log_level: info
-  mode: standalone
-  worker_pool: 4
-  storage:
-    driver: memory
-    postgres_dsn: ${INTU_POSTGRES_DSN}
-
-channels_dir: src/channels
-
-message_storage:
-  driver: postgres         # memory | postgres | s3
-  mode: full               # none | status | full
-  connection:
-    host: ${PG_HOST:-localhost}
-    port: 5432
-    database: intu_messages
-    username: ${PG_USER}
-    password: ${PG_PASSWORD}
-
-destinations:
-  file-output:
-    type: file
-    file:
-      directory: ./output
-      filename_pattern: "{{channelId}}_{{messageId}}_{{timestamp}}.json"
-
-  hl7-file-output:
-    type: file
-    file:
-      directory: ./output
-      filename_pattern: "{{channelId}}_{{messageId}}_{{timestamp}}.hl7"
-
-dashboard:
-  enabled: true
-  port: 3000
-  auth:
-    provider: basic
-    username: admin
-    password: admin
-
-audit:
-  enabled: true
-  destination: memory
-EOF
+cd /tmp/intu/demo
 ```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+rm -rf /tmp/intu/demo/output
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+intu serve --dir .
+```
+
+Output:
+
+```txt
+{"time":"2026-03-16T21:57:32.896017153+08:00","level":"INFO","msg":"building TypeScript channels"}
+...
+Dashboard running on http://localhost:3000 (auth: basic)
+intu engine running. Press Ctrl+C to stop.
+```
+
+Command:
+
+```sh
+curl -X POST 'localhost:8081/ingest' --header 'Content-Type: application/json' --data-raw '{"message": "This is a test message!"}'
+```
+
+Output:
+
+```txt
+{"status":"accepted"}
+```
+
+Command:
+
+```sh
+ls -1 /tmp/intu/demo
+```
+
+Output:
+
+```txt
+AGENTS.md
+dist
+docker-compose.yml
+Dockerfile
+intu.dev.yaml
+intu.prod.yaml
+intu.yaml
+node_modules
+output
+package.json
+package-lock.json
+README.md
+src
+tsconfig.json
+```
+
+Command:
+
+```sh
+ls -1 /tmp/intu/demo/output
+```
+
+Output:
+
+```txt
+http-to-file_7a707f21-98fc-4e1f-b972-92c87abaaa75_20260316T220351.json
+```
+
+Command:
+
+```sh
+cat /tmp/intu/demo/output/http-to-file_7a707f21-98fc-4e1f-b972-92c87abaaa75_20260316T220351.json
+```
+
+Output:
+
+```txt
+{"message":"This is a test message!","processedAt":"2026-03-16T14:03:51.064Z","source":"http-to-file"}
+```
+### TC-082: PASS
+
+Command:
+
+```sh
+cd /tmp/intu/demo
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+intu serve --dir .
+```
+
+Output:
+
+```txt
+{"time":"2026-03-16T21:57:32.896017153+08:00","level":"INFO","msg":"building TypeScript channels"}
+...
+Dashboard running on http://localhost:3000 (auth: basic)
+intu engine running. Press Ctrl+C to stop.
+``````
+
+Opening a browser and going to `localhost:3000` yields the following screen:
+
+![](whinee/Pasted%20image%2020260316220604.png)
+
+Logging in with `admin:admin` yields the following screen:
+
+![](whinee/Pasted%20image%2020260316220710.png)
+
+### TC-083: PASS
+
+Command:
+
+```sh
+cd /tmp/intu/demo
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+intu serve --dir .
+```
+
+Output:
+
+```txt
+{"time":"2026-03-16T21:57:32.896017153+08:00","level":"INFO","msg":"building TypeScript channels"}
+...
+Dashboard running on http://localhost:3000 (auth: basic)
+intu engine running. Press Ctrl+C to stop.
+``````
+
+Opening a browser and going to `localhost:3000` yields the following screen:
+
+![](whinee/Pasted%20image%2020260316220604.png)
+
+With Firefox' Web Developer tools, logging in with `admin:notadmin` yields the following screen:
+
+![](whinee/Pasted%20image%2020260316221035.png)
+
+Going to `http://localhost:3000/api/messages/7a707f21-98fc-4e1f-b972-92c87abaaa75/payload?stage=received&download=true` yields an HTTP Code 401 Unauthorized
+
+![](whinee/Pasted%20image%2020260316221349.png)
 
 ---
 ## Markdown Templates

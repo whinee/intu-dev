@@ -1347,7 +1347,7 @@ intu engine running. Press Ctrl+C to stop.
 {"time":"2026-03-15T10:04:34.757825353+08:00","level":"INFO","msg":"channel hot-reloaded","channel":"http-to-file"}
 ```
 
-Clicking the `Channels` tab in the dashboard yields the following screen:
+Opening a browser and going to `localhost:3000`, then clicking the `Channels` tab in the dashboard yields the following screen:
 
 ![](whinee/Pasted%20image%2020260315095927.png)
 
@@ -1587,9 +1587,90 @@ Output:
 ```txt
 No messages found.
 ```
+### TC-026: PASS
+
+Command:
+
+```sh
+cd /tmp/intu/demo
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+'/home/lyra/systems/P01 Lyra Personal/40-49 Hardware and Software/41 Software Projects/41.31 intu/intu' dashboard --dir . --port 4000
+```
+
+Output:
+
+```txt
+Dashboard running at http://localhost:4000
+{"time":"2026-03-16T16:17:55.723208543+08:00","level":"INFO","msg":"dashboard listening","addr":"[::]:4000"}
+```
+
+Opening a browser and going to `localhost:4000` yields the following screen:
+
+![](whinee/Pasted%20image%2020260316162342.png)
+
+## TC-082: IN PROGRESS
+
+```sh
+tee /tmp/intu/demo/intu.yaml > /dev/null <<'EOF'
+runtime:
+  name: intu
+  profile: dev
+  log_level: info
+  mode: standalone
+  worker_pool: 4
+  storage:
+    driver: memory
+    postgres_dsn: ${INTU_POSTGRES_DSN}
+
+channels_dir: src/channels
+
+message_storage:
+  driver: postgres         # memory | postgres | s3
+  mode: full               # none | status | full
+  connection:
+    host: ${PG_HOST:-localhost}
+    port: 5432
+    database: intu_messages
+    username: ${PG_USER}
+    password: ${PG_PASSWORD}
+
+destinations:
+  file-output:
+    type: file
+    file:
+      directory: ./output
+      filename_pattern: "{{channelId}}_{{messageId}}_{{timestamp}}.json"
+
+  hl7-file-output:
+    type: file
+    file:
+      directory: ./output
+      filename_pattern: "{{channelId}}_{{messageId}}_{{timestamp}}.hl7"
+
+dashboard:
+  enabled: true
+  port: 3000
+  auth:
+    provider: basic
+    username: admin
+    password: admin
+
+audit:
+  enabled: true
+  destination: memory
+EOF
+```
 
 ---
-
 ## Markdown Templates
 
 These are templates for writing repetitive stuff

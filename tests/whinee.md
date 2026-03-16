@@ -18,11 +18,15 @@ Locale: en_US.UTF-8
 
 ## Tasks
 
-The following tasks are done in order to be able to test the software effectively.
+The following commands are run in order to run the software:
+
+The Go language was first installed in the machine:
 
 ```sh
 sudo dnf install -y golang
 ```
+
+Then, the project was built:
 
 ```sh
 go build -o intu .
@@ -34,6 +38,24 @@ Every time the machine is rebooted, the following command is ran:
 
 ```sh
 ./intu init demo --dir /tmp/intu
+```
+
+In the later tests, the project was installed thru the following:
+
+```sh
+sudo npm i -g intu-dev
+```
+
+Now, the program can be ran as:
+
+```sh
+intu
+```
+
+From now on, every time the machine is rebooted, the following command is ran:
+
+```sh
+intu init demo --dir /tmp/intu
 ```
 ## Tests
 
@@ -1117,7 +1139,7 @@ http://localhost:3000
 Browser:
 
 ![](whinee/Pasted%20image%2020260315091804.png)
-### TC-015: IN PROGRESS
+### TC-015: BLOCKED
 
 Command:
 
@@ -1384,7 +1406,7 @@ Refreshing the page, we can now see that the `http-to-file` channel is now enabl
 ![](whinee/Pasted%20image%2020260315100522.png)
 
 
-### TC-018: PASS
+### TC-018: IN PROGRESS
 
 Command:
 
@@ -1396,6 +1418,62 @@ Output:
 
 ```txt
 ```
+
+Command:
+
+```sh
+tee /tmp/intu/demo/intu.yaml > /dev/null <<'EOF'
+runtime:
+  name: intu
+  profile: dev
+  log_level: info
+  mode: standalone
+  worker_pool: 4
+  storage:
+    driver: memory
+    postgres_dsn: ${INTU_POSTGRES_DSN}
+
+channels_dir: src/channels
+
+message_storage:
+  driver: memory
+  mode: full
+  memory:
+    max_records: 100000       # evicts oldest when exceeded
+    max_bytes: 536870912      # 512 MB; evicts oldest when exceeded
+
+destinations:
+  file-output:
+    type: file
+    file:
+      directory: ./output
+      filename_pattern: "{{channelId}}_{{messageId}}_{{timestamp}}.json"
+
+  hl7-file-output:
+    type: file
+    file:
+      directory: ./output
+      filename_pattern: "{{channelId}}_{{messageId}}_{{timestamp}}.hl7"
+
+dashboard:
+  enabled: true
+  port: 3000
+  auth:
+    provider: basic
+    username: admin
+    password: admin
+
+audit:
+  enabled: true
+  destination: memory
+EOF
+```
+
+Output:
+
+```txt
+```
+
 
 Command:
 
@@ -1515,6 +1593,12 @@ Output:
 Command:
 
 ```sh
+curl -X POST 'localhost:8081/ingest'
+```
+
+Command:
+
+```sh
 '/home/lyra/systems/P01 Lyra Personal/40-49 Hardware and Software/41 Software Projects/41.31 intu/intu' stats http-to-file --dir .
 ```
 
@@ -1553,6 +1637,87 @@ Command:
 
 ```sh
 cd /tmp/intu/demo
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+tee /tmp/intu/demo/intu.yaml > /dev/null <<'EOF'
+runtime:
+  name: intu
+  profile: dev
+  log_level: info
+  mode: standalone
+  worker_pool: 4
+  storage:
+    driver: memory
+    postgres_dsn: ${INTU_POSTGRES_DSN}
+
+channels_dir: src/channels
+
+message_storage:
+  driver: postgres         # memory | postgres | s3
+  mode: full               # none | status | full
+  connection:
+    host: ${PG_HOST:-localhost}
+    port: 5432
+    database: intu_messages
+    username: ${PG_USER}
+    password: ${PG_PASSWORD}
+
+destinations:
+  file-output:
+    type: file
+    file:
+      directory: ./output
+      filename_pattern: "{{channelId}}_{{messageId}}_{{timestamp}}.json"
+
+  hl7-file-output:
+    type: file
+    file:
+      directory: ./output
+      filename_pattern: "{{channelId}}_{{messageId}}_{{timestamp}}.hl7"
+
+dashboard:
+  enabled: true
+  port: 3000
+  auth:
+    provider: basic
+    username: admin
+    password: admin
+
+audit:
+  enabled: true
+  destination: memory
+EOF
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+tee /tmp/intu/demo/intu.yaml > /dev/null <<'EOF'
+runtime:
+  profile: dev
+  log_level: debug
+  mode: standalone
+
+message_storage:
+  driver: memory
+  mode: full
+  memory:
+    max_records: 100000       # evicts oldest when exceeded
+    max_bytes: 536870912      # 512 MB; evicts oldest when exceeded
+EOF
 ```
 
 Output:

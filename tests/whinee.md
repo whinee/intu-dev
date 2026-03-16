@@ -106,29 +106,18 @@ Output:
 docker-compose.yml  Dockerfile  intu.dev.yaml  intu.prod.yaml  intu.yaml  node_modules  package.json  package-lock.json  README.md  src  tsconfig.json
 ```
 
-### TC-002: FAIL
-
-The second run should fail. It did not.
+### TC-002: PASS
 
 Command:
 
 ```sh
-./intu init demo --dir /tmp/intu
+intu init demo --dir /tmp/intu
 ```
 
 Output:
 
 ```txt
-Installing dependencies...
-
-up to date, audited 4 packages in 491ms
-
-found 0 vulnerabilities
-
-Project created: demo (2 channels)
-Next steps:
-  cd /tmp/intu/demo
-  npm run dev
+project directory already exists: /tmp/intu/demo (use --force to overwrite)
 ```
 
 ### TC-003: PASS

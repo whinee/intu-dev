@@ -1016,6 +1016,12 @@ message_storage:
     username: ${PG_USER}
     password: ${PG_PASSWORD}
 
+logging:
+  level: info
+  format: json
+  transports:
+    - type: console
+
 destinations:
   file-output:
     type: file
@@ -1128,7 +1134,7 @@ http://localhost:3000
 Browser:
 
 ![](whinee/Pasted%20image%2020260315091804.png)
-### TC-015: BLOCKED
+### TC-015: FAIL
 
 Command:
 
@@ -1264,6 +1270,25 @@ Output:
 {"0":"T","1":"h","10":"t","11":"e","12":"s","13":"t","14":" ","15":"m","16":"e","17":"s","18":"s","19":"a","2":"i","20":"g","21":"e","22":"!","3":"s","4":" ","5":"i","6":"s","7":" ","8":"a","9":" ","processedAt":"2026-03-15T01:46:26.444Z","source":"http-to-file"}
 ```
 
+Command:
+
+```sh
+curl -X POST 'localhost:8081/ingest'
+```
+
+Output:
+
+```txt
+{"status":"accepted"}
+```
+
+Expectation:
+
+For the validator to block POST requests with an empty body.
+
+Reality:
+
+The validator failed to block the POST request with an empty body.
 ### TC-016: PASS
 
 Command:
@@ -1577,12 +1602,6 @@ Output:
 
 ```txt
 {"status":"accepted"}
-```
-
-Command:
-
-```sh
-curl -X POST 'localhost:8081/ingest'
 ```
 
 Command:
@@ -1942,7 +1961,7 @@ With Firefox' Web Developer tools, logging in with `admin:notadmin` yields the f
 
 ![](whinee/Pasted%20image%2020260316221035.png)
 
-Going to `http://localhost:3000/api/messages/7a707f21-98fc-4e1f-b972-92c87abaaa75/payload?stage=received&download=true` yields an HTTP Code 401 Unauthorized
+Going to `http://localhost:3000/api/messages/7a707f21-98fc-4e1f-b972-92c87abaaa75/payload?stage=received&download=true` yields an HTTP Code 401 Unauthorized, as seen below:
 
 ![](whinee/Pasted%20image%2020260316221349.png)
 

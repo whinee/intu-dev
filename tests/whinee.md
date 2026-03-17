@@ -2250,6 +2250,47 @@ Output:
 ```txt
 {"message":"This is a test message!","processedAt":"2026-03-16T14:03:51.064Z","source":"http-to-file"}
 ```
+
+### TC-028: PASS
+
+Command:
+
+```sh
+cd /tmp/intu/demo
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+intu serve --profile prod
+```
+
+Output:
+
+```txt
+...
+{"time":"2026-03-17T22:27:20.720176926+08:00","level":"INFO","msg":"message received","channel":"http-to-file","messageId":"202765d4-c430-4f45-86c7-0ae772d185de","correlationId":"202765d4-c430-4f45-86c7-0ae772d185de"}
+{"time":"2026-03-17T22:27:20.849799821+08:00","level":"INFO","msg":"script executed","channel":"http-to-file","function":"validate","file":"validator.ts","duration_ms":87.62}
+{"time":"2026-03-17T22:27:20.92178378+08:00","level":"INFO","msg":"script executed","channel":"http-to-file","function":"transform","file":"transformer.ts","duration_ms":71.885}
+{"time":"2026-03-17T22:27:20.930165085+08:00","level":"INFO","msg":"message processed","channel":"http-to-file","messageId":"202765d4-c430-4f45-86c7-0ae772d185de","correlationId":"202765d4-c430-4f45-86c7-0ae772d185de","durationMs":210,"destinations":1}
+```
+
+Command:
+
+```sh
+curl -X POST 'localhost:8081/ingest' --header 'Content-Type: application/json' --data-raw '{"message": "1"}'
+```
+
+Output:
+
+```txt
+{"status":"accepted"}
+```
 ### TC-082: PASS
 
 Command:

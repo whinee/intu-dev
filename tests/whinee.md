@@ -1,3 +1,16 @@
+## Table of Contents
+
+```table-of-contents
+title: 
+style: nestedList # TOC style (nestedList|nestedOrderedList|inlineFirstLevel)
+minLevel: 0 # Include headings from the specified level
+maxLevel: 0 # Include headings up to the specified level
+include: 
+exclude: 
+includeLinks: true # Make headings clickable
+hideWhenEmpty: false # Hide TOC if no headings are found
+debugInConsole: false # Print debug info in Obsidian console
+```
 ## Environment
 
 ```sh
@@ -1906,6 +1919,38 @@ ID: 5468316f-19e7-4e84-8c26-54c8c47ba1d0  Channel: http-to-file  Stage: sent  St
   Content: {"body":"{\"message\":\"1\",\"processedAt\":\"2026-03-17T11:47:09.269Z\",\"source\":\"http-to-file\"}","channelId":"http-to-file","contentType":"raw","correlationId":"5468316f-19e7-4e84-8c26-54c8c47ba...(truncated)
 
 Total: 10 messages
+```
+
+### TC-020: PASS
+
+Command:
+
+```sh
+cd /tmp/intu/demo
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+intu message get 5468316f-19e7-4e84-8c26-54c8c47ba1d0 --dir .
+```
+
+Output:
+
+```txt
+ID:            5468316f-19e7-4e84-8c26-54c8c47ba1d0
+Correlation:   5468316f-19e7-4e84-8c26-54c8c47ba1d0
+Channel:       http-to-file
+Stage:         sent
+Status:        SENT
+Timestamp:     2026-03-17T19:47:09+08:00
+Content:
+{"body":"{\"message\":\"1\",\"processedAt\":\"2026-03-17T11:47:09.269Z\",\"source\":\"http-to-file\"}","channelId":"http-to-file","contentType":"raw","correlationId":"5468316f-19e7-4e84-8c26-54c8c47ba1d0","file":{"directory":"./output","filename":"http-to-file_5468316f-19e7-4e84-8c26-54c8c47ba1d0_20260317T194709.json"},"id":"5468316f-19e7-4e84-8c26-54c8c47ba1d0","metadata":{"destination":"file-output"},"timestamp":"2026-03-17T19:47:09.264866553+08:00","transport":"file","version":"1"}
 ```
 ### TC-026: PASS
 

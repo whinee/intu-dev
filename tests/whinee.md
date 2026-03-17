@@ -16,7 +16,7 @@ Disk (/home): 485.63 GiB / 789.51 GiB (62%) - btrfs
 Locale: en_US.UTF-8
 ```
 
-## Tasks
+## Initialization of Environment
 
 The following commands are run in order to run the software:
 
@@ -71,6 +71,14 @@ From now on, every time the machine is rebooted, the following command is ran:
 ```sh
 intu init demo --dir /tmp/intu
 ```
+
+Databases have also been set up in order to accomodate for the other test cases as well.
+
+```sh
+sudo docker run -d --name pg --env-file .env -p 5432:5432 postgres
+sudo docker exec -it pg psql -U intu -c "CREATE DATABASE intu_message;"
+```
+
 ## Tests
 
 ### TC-001: PASS
@@ -1709,7 +1717,7 @@ Output:
 }
 ```
 
-### TC-019: IN PROGRESS
+### TC-019: PASS
 
 Command:
 
@@ -1828,49 +1836,6 @@ Output:
 Command:
 
 ```sh
-sudo docker run -d --name pg --env-file .env -p 5432:5432 postgres
-```
-
-Output:
-
-```txt
-Unable to find image 'postgres:latest' locally
-latest: Pulling from library/postgres
-f3bba6db66bc: Pull complete 
-af73ff344a10: Pull complete 
-daebffc75218: Pull complete 
-895ed9837058: Pull complete 
-ce2467f2f21d: Pull complete 
-fcd98f4944fb: Pull complete 
-ec781dee3f47: Pull complete 
-fd0dcffac314: Pull complete 
-bda354b903ce: Pull complete 
-07cec992154a: Pull complete 
-917d5439b698: Pull complete 
-d4ced18622af: Pull complete 
-365add159c69: Pull complete 
-b26b36c837dc: Download complete 
-af9063ecbdef: Download complete 
-Digest: sha256:98f32d2e093deea07127bcc373f89729b77ff3486511cc77224c530e63a41f0e
-Status: Downloaded newer image for postgres:latest
-8de0989ae0d95b5871e37eba85b230504ad76826a69f82d072294530baa11df3
-```
-
-Command:
-
-```sh
-sudo docker exec -it pg psql -U intu -c "CREATE DATABASE intu_message;"
-```
-
-Output:
-
-```sh
-CREATE DATABASE
-```
-
-Command:
-
-```sh
 intu serve --profile prod
 ```
 
@@ -1888,11 +1853,16 @@ Command:
 
 ```sh
 curl -X POST 'localhost:8081/ingest' --header 'Content-Type: application/json' --data-raw '{"message": "1"}'
+curl -X POST 'localhost:8081/ingest' --header 'Content-Type: application/json' --data-raw '{"message": "2"}'
+curl -X POST 'localhost:8081/ingest' --header 'Content-Type: application/json' --data-raw '{"message": "3"}'
+curl -X POST 'localhost:8081/ingest' --header 'Content-Type: application/json' --data-raw '{"message": "4"}'
 ```
 
 Output:
 
 ```txt
+{"status":"accepted"}
+{"status":"accepted"}
 {"status":"accepted"}
 ```
 
@@ -1905,7 +1875,37 @@ intu message list --dir . --channel http-to-file --limit 10
 Output:
 
 ```txt
-No messages found.
+ID: bebab51e-c210-4077-af07-41713da1cb80  Channel: http-to-file  Stage: sent  Status: SENT  Time: 2026-03-17T19:51:34+08:00
+  Content: {"body":"{\"message\":\"4\",\"processedAt\":\"2026-03-17T11:51:34.941Z\",\"source\":\"http-to-file\"}","channelId":"http-to-file","contentType":"raw","correlationId":"bebab51e-c210-4077-af07-41713da1c...(truncated)
+
+ID: bebab51e-c210-4077-af07-41713da1cb80  Channel: http-to-file  Stage: transformed  Status: TRANSFORMED  Time: 2026-03-17T19:51:34+08:00
+  Content: {"body":"{\"message\":\"4\",\"processedAt\":\"2026-03-17T11:51:34.941Z\",\"source\":\"http-to-file\"}","channelId":"http-to-file","contentType":"raw","correlationId":"bebab51e-c210-4077-af07-41713da1c...(truncated)
+
+ID: bebab51e-c210-4077-af07-41713da1cb80  Channel: http-to-file  Stage: received  Status: RECEIVED  Time: 2026-03-17T19:51:34+08:00
+  Content: {"body":"{\"message\": \"4\"}","channelId":"http-to-file","contentType":"raw","correlationId":"bebab51e-c210-4077-af07-41713da1cb80","http":{"headers":{"Accept":"*/*","Content-Length":"16","Content-Ty...(truncated)
+
+ID: ca38c38a-ad2c-405a-bd3d-84159f3e1acb  Channel: http-to-file  Stage: sent  Status: SENT  Time: 2026-03-17T19:51:04+08:00
+  Content: {"body":"{\"message\":\"3\",\"processedAt\":\"2026-03-17T11:51:04.313Z\",\"source\":\"http-to-file\"}","channelId":"http-to-file","contentType":"raw","correlationId":"ca38c38a-ad2c-405a-bd3d-84159f3e1...(truncated)
+
+ID: ca38c38a-ad2c-405a-bd3d-84159f3e1acb  Channel: http-to-file  Stage: transformed  Status: TRANSFORMED  Time: 2026-03-17T19:51:04+08:00
+  Content: {"body":"{\"message\":\"3\",\"processedAt\":\"2026-03-17T11:51:04.313Z\",\"source\":\"http-to-file\"}","channelId":"http-to-file","contentType":"raw","correlationId":"ca38c38a-ad2c-405a-bd3d-84159f3e1...(truncated)
+
+ID: ca38c38a-ad2c-405a-bd3d-84159f3e1acb  Channel: http-to-file  Stage: received  Status: RECEIVED  Time: 2026-03-17T19:51:04+08:00
+  Content: {"body":"{\"message\": \"3\"}","channelId":"http-to-file","contentType":"raw","correlationId":"ca38c38a-ad2c-405a-bd3d-84159f3e1acb","http":{"headers":{"Accept":"*/*","Content-Length":"16","Content-Ty...(truncated)
+
+ID: 6d3bb6a5-2082-4b03-99c2-852eef125cfe  Channel: http-to-file  Stage: sent  Status: SENT  Time: 2026-03-17T19:50:50+08:00
+  Content: {"body":"{\"message\":\"2\",\"processedAt\":\"2026-03-17T11:50:50.757Z\",\"source\":\"http-to-file\"}","channelId":"http-to-file","contentType":"raw","correlationId":"6d3bb6a5-2082-4b03-99c2-852eef125...(truncated)
+
+ID: 6d3bb6a5-2082-4b03-99c2-852eef125cfe  Channel: http-to-file  Stage: transformed  Status: TRANSFORMED  Time: 2026-03-17T19:50:50+08:00
+  Content: {"body":"{\"message\":\"2\",\"processedAt\":\"2026-03-17T11:50:50.757Z\",\"source\":\"http-to-file\"}","channelId":"http-to-file","contentType":"raw","correlationId":"6d3bb6a5-2082-4b03-99c2-852eef125...(truncated)
+
+ID: 6d3bb6a5-2082-4b03-99c2-852eef125cfe  Channel: http-to-file  Stage: received  Status: RECEIVED  Time: 2026-03-17T19:50:50+08:00
+  Content: {"body":"{\"message\": \"2\"}","channelId":"http-to-file","contentType":"raw","correlationId":"6d3bb6a5-2082-4b03-99c2-852eef125cfe","http":{"headers":{"Accept":"*/*","Content-Length":"16","Content-Ty...(truncated)
+
+ID: 5468316f-19e7-4e84-8c26-54c8c47ba1d0  Channel: http-to-file  Stage: sent  Status: SENT  Time: 2026-03-17T19:47:09+08:00
+  Content: {"body":"{\"message\":\"1\",\"processedAt\":\"2026-03-17T11:47:09.269Z\",\"source\":\"http-to-file\"}","channelId":"http-to-file","contentType":"raw","correlationId":"5468316f-19e7-4e84-8c26-54c8c47ba...(truncated)
+
+Total: 10 messages
 ```
 ### TC-026: PASS
 

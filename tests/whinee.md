@@ -2089,6 +2089,68 @@ ID: 5468316f-19e7-4e84-8c26-54c8c47ba1d0  Channel: http-to-file  Stage: received
 
 Total: 3 messages
 ```
+
+### TC-024: PASS
+
+Command:
+
+```sh
+cd /tmp/intu/demo
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+intu prune --dir . --all --dry-run
+```
+
+Output:
+
+```txt
+DRY RUN: Would prune messages for all channels before 2026-02-15
+```
+
+Command:
+
+```sh
+intu prune --dir . --all
+```
+
+Output:
+
+```txt
+add --confirm to actually prune data
+```
+
+Command:
+
+```sh
+intu prune --dir . --all --confirm
+```
+
+Output:
+
+```txt
+Pruned 0 messages for all channels before 2026-02-15
+```
+
+Command:
+
+```sh
+intu prune --dir . --all --confirm --before 2026-03-18
+```
+
+Output:
+
+```txt
+Pruned 12 messages for all channels before 2026-03-18
+```
+
 ### TC-027: PASS
 
 Command:

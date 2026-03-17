@@ -20,10 +20,24 @@ Locale: en_US.UTF-8
 
 The following commands are run in order to run the software:
 
-The Go language was first installed in the machine:
+Docker and the Go language was first installed in the machine:
 
 ```sh
+sudo dnf remove docker \
+                  docker-client \
+                  docker-client-latest \
+                  docker-common \
+                  docker-latest \
+                  docker-latest-logrotate \
+                  docker-logrotate \
+                  docker-selinux \
+                  docker-engine-selinux \
+                  docker-engine
+sudo dnf config-manager addrepo --from-repofile https://download.docker.com/linux/fedora/docker-ce.repo
+sudo dnf install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 sudo dnf install -y golang
+sudo groupadd --system docker
+sudo systemctl enable --now docker
 ```
 
 Then, the project was built:
@@ -1418,14 +1432,74 @@ Enabled: http-to-file
 Refreshing the page, we can now see that the `http-to-file` channel is now enabled.
 
 ![](whinee/Pasted%20image%2020260315100522.png)
-
-
-### TC-018: IN PROGRESS
+### TC-018: PASS
 
 Command:
 
 ```sh
 cd /tmp/intu/demo
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+tee /tmp/intu/demo/.env > /dev/null <<'EOF'
+# intu Environment Variables
+# Active profile (dev | prod)
+INTU_PROFILE=dev
+
+# --- Core ---
+# Used by docker-compose: postgres://postgres:postgres@postgres:5432/intu?sslmode=disable
+INTU_POSTGRES_DSN=postgres://postgres:postgres@localhost:5432/intu?sslmode=disable
+
+# --- Database ---
+
+POSTGRES_USER=intu
+POSTGRES_PASSWORD=intu
+POSTGRES_DB=intu
+
+# --- Dashboard ---
+INTU_DASHBOARD_USER=admin
+INTU_DASHBOARD_PASS=admin
+
+# --- Cluster (enable cluster mode for horizontal scaling) ---
+# docker-compose sets INTU_REDIS_ADDRESS automatically; override here if needed
+# INTU_REDIS_ADDRESS=localhost:6379
+# INTU_REDIS_PASSWORD=
+
+# --- AWS (uncomment for S3 storage, CloudWatch logs, AWS Secrets Manager) ---
+# INTU_AWS_REGION=us-east-1
+# INTU_S3_BUCKET=my-intu-bucket
+
+# --- Secrets Providers (uncomment the provider you use) ---
+# VAULT_ADDR=http://127.0.0.1:8200
+# VAULT_TOKEN=
+# GCP_PROJECT_ID=
+
+# --- Observability (uncomment for OpenTelemetry) ---
+# OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+
+# --- Log Transports (uncomment as needed) ---
+# DD_API_KEY=
+# SUMO_HTTP_ENDPOINT=
+# ES_URL=http://localhost:9200
+# ES_USER=
+# ES_PASS=
+
+# --- Access Control (uncomment for LDAP or OIDC) ---
+# LDAP_URL=ldap://localhost:389
+# LDAP_BASE_DN=dc=example,dc=com
+# LDAP_BIND_DN=cn=admin,dc=example,dc=com
+# LDAP_BIND_PASSWORD=
+# OIDC_ISSUER=https://accounts.google.com
+# OIDC_CLIENT_ID=
+# OIDC_CLIENT_SECRET=
+EOF
 ```
 
 Output:
@@ -1448,8 +1522,6 @@ runtime:
     postgres_dsn: ${INTU_POSTGRES_DSN}
 
 channels_dir: src/channels
-
-message_storage:
   driver: memory
   mode: full
   memory:
@@ -1488,11 +1560,10 @@ Output:
 ```txt
 ```
 
-
 Command:
 
 ```sh
-'/home/lyra/systems/P01 Lyra Personal/40-49 Hardware and Software/41 Software Projects/41.31 intu/intu' serve --dir . --profile dev
+intu serve --dir . --profile dev
 ```
 
 Output:
@@ -1607,7 +1678,7 @@ Output:
 Command:
 
 ```sh
-'/home/lyra/systems/P01 Lyra Personal/40-49 Hardware and Software/41 Software Projects/41.31 intu/intu' stats http-to-file --dir .
+intu stats http-to-file --dir .
 ```
 
 Output:
@@ -1638,7 +1709,6 @@ Output:
 }
 ```
 
-
 ### TC-019: IN PROGRESS
 
 Command:
@@ -1664,19 +1734,15 @@ runtime:
   worker_pool: 4
   storage:
     driver: memory
-    postgres_dsn: ${INTU_POSTGRES_DSN}
+    postgres_dsn: postgres://intu:intu@localhost:5432/intu
 
 channels_dir: src/channels
 
 message_storage:
   driver: postgres         # memory | postgres | s3
   mode: full               # none | status | full
-  connection:
-    host: ${PG_HOST:-localhost}
-    port: 5432
-    database: intu_messages
-    username: ${PG_USER}
-    password: ${PG_PASSWORD}
+  postgres:
+    dsn: postgres://intu:intu@localhost:5432/intu_message
 
 destinations:
   file-output:
@@ -1713,18 +1779,44 @@ Output:
 Command:
 
 ```sh
-tee /tmp/intu/demo/intu.yaml > /dev/null <<'EOF'
-runtime:
-  profile: dev
-  log_level: debug
-  mode: standalone
+tee /tmp/intu/demo/intu.prod.yaml > /dev/null <<'EOF'
+# ============================================================================
+# intu Production Profile
+# Uncomment sections below to enable enterprise features.
+# Environment variables (${VAR}) are resolved at startup from .env or OS env.
+# ============================================================================
 
+runtime:
+  profile: prod
+  log_level: info
+  mode: standalone           # standalone | cluster
+  worker_pool: 8
+  storage:
+    driver: postgres
+    postgres_dsn: postgres://intu:intu@localhost:5432/intu
+
+# --- Message Storage ---------------------------------------------------------
+# Controls how messages are persisted globally. Channels can override per-channel.
+# Drivers: memory | postgres | s3
+# Modes: none (disabled) | status (metadata only, no payloads) | full (full payloads)
 message_storage:
-  driver: memory
-  mode: full
-  memory:
-    max_records: 100000       # evicts oldest when exceeded
-    max_bytes: 536870912      # 512 MB; evicts oldest when exceeded
+  driver: postgres
+  mode: full               # none | status (metadata only) | full (payloads + metadata)
+  postgres:
+    dsn: postgres://intu:intu@localhost:5432/intu_message
+    table_prefix: intu_
+    max_open_conns: 25
+    max_idle_conns: 5
+
+# --- Audit -------------------------------------------------------------------
+audit:
+  enabled: true
+  destination: postgres      # memory | postgres
+  events:                    # Restrict to specific events (omit for all)
+    - message.reprocess
+    - channel.deploy
+    - channel.undeploy
+    - channel.restart
 EOF
 ```
 
@@ -1736,7 +1828,50 @@ Output:
 Command:
 
 ```sh
-'/home/lyra/systems/P01 Lyra Personal/40-49 Hardware and Software/41 Software Projects/41.31 intu/intu' serve --dir . --profile dev
+sudo docker run -d --name pg --env-file .env -p 5432:5432 postgres
+```
+
+Output:
+
+```txt
+Unable to find image 'postgres:latest' locally
+latest: Pulling from library/postgres
+f3bba6db66bc: Pull complete 
+af73ff344a10: Pull complete 
+daebffc75218: Pull complete 
+895ed9837058: Pull complete 
+ce2467f2f21d: Pull complete 
+fcd98f4944fb: Pull complete 
+ec781dee3f47: Pull complete 
+fd0dcffac314: Pull complete 
+bda354b903ce: Pull complete 
+07cec992154a: Pull complete 
+917d5439b698: Pull complete 
+d4ced18622af: Pull complete 
+365add159c69: Pull complete 
+b26b36c837dc: Download complete 
+af9063ecbdef: Download complete 
+Digest: sha256:98f32d2e093deea07127bcc373f89729b77ff3486511cc77224c530e63a41f0e
+Status: Downloaded newer image for postgres:latest
+8de0989ae0d95b5871e37eba85b230504ad76826a69f82d072294530baa11df3
+```
+
+Command:
+
+```sh
+sudo docker exec -it pg psql -U intu -c "CREATE DATABASE intu_message;"
+```
+
+Output:
+
+```sh
+CREATE DATABASE
+```
+
+Command:
+
+```sh
+intu serve --profile prod
 ```
 
 Output:
@@ -1752,7 +1887,19 @@ intu engine running. Press Ctrl+C to stop.
 Command:
 
 ```sh
-'/home/lyra/systems/P01 Lyra Personal/40-49 Hardware and Software/41 Software Projects/41.31 intu/intu' message list --dir . --channel http-to-file --limit 10
+curl -X POST 'localhost:8081/ingest' --header 'Content-Type: application/json' --data-raw '{"message": "1"}'
+```
+
+Output:
+
+```txt
+{"status":"accepted"}
+```
+
+Command:
+
+```sh
+intu message list --dir . --channel http-to-file --limit 10
 ```
 
 Output:

@@ -1982,6 +1982,113 @@ Opening a browser and going to `localhost:4000` yields the following screen:
 
 ![](whinee/Pasted%20image%2020260316162342.png)
 
+### TC-021: PASS
+
+Command:
+
+```sh
+cd /tmp/intu/demo
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+intu message count --dir . --channel http-to-file
+```
+
+Output:
+
+```txt
+12
+```
+
+Command:
+
+```sh
+intu message count --dir . --channel http-to-file --status error
+```
+
+Output:
+
+```txt
+0
+```
+
+### TC-022: PASS
+
+Command:
+
+```sh
+cd /tmp/intu/demo
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+intu reprocess message http-to-file --message-id 5468316f-19e7-4e84-8c26-54c8c47ba1d0 --dir . --dry-run
+```
+
+Output:
+
+```txt
+Would reprocess message 5468316f-19e7-4e84-8c26-54c8c47ba1d0 from channel http-to-file (stage: sent, status: SENT)
+```
+
+Command:
+
+```sh
+intu reprocess message http-to-file --message-id 5468316f-19e7-4e84-8c26-54c8c47ba1d0 --dir .
+```
+
+Output:
+
+```txt
+{"time":"2026-03-17T21:22:26.124435158+08:00","level":"INFO","msg":"node worker pool started","pool_size":4}
+{"time":"2026-03-17T21:22:26.125063988+08:00","level":"INFO","msg":"message received","channel":"http-to-file","messageId":"5468316f-19e7-4e84-8c26-54c8c47ba1d0","correlationId":"5468316f-19e7-4e84-8c26-54c8c47ba1d0"}
+{"time":"2026-03-17T21:22:26.267850881+08:00","level":"INFO","msg":"script executed","channel":"http-to-file","function":"validate","file":"validator.ts","duration_ms":138.693}
+{"time":"2026-03-17T21:22:26.298271767+08:00","level":"INFO","msg":"script executed","channel":"http-to-file","function":"transform","file":"transformer.ts","duration_ms":30.361}
+{"time":"2026-03-17T21:22:26.307465153+08:00","level":"INFO","msg":"message processed","channel":"http-to-file","messageId":"5468316f-19e7-4e84-8c26-54c8c47ba1d0","correlationId":"5468316f-19e7-4e84-8c26-54c8c47ba1d0","durationMs":182,"destinations":1}
+{
+  "channel": "http-to-file",
+  "new_message_id": "5468316f-19e7-4e84-8c26-54c8c47ba1d0",
+  "original_message_id": "5468316f-19e7-4e84-8c26-54c8c47ba1d0",
+  "reprocessed": true,
+  "timestamp": "2026-03-17T21:22:26+08:00"
+}
+{"time":"2026-03-17T21:22:26.307572473+08:00","level":"INFO","msg":"message reprocessed","originalID":"5468316f-19e7-4e84-8c26-54c8c47ba1d0","newID":"5468316f-19e7-4e84-8c26-54c8c47ba1d0","channel":"http-to-file"}
+{"time":"2026-03-17T21:22:26.317329749+08:00","level":"INFO","msg":"node worker pool stopped"}
+```
+
+Command:
+
+```sh
+intu message list --dir . --channel http-to-file --limit 3
+```
+
+Output:
+
+```txt
+ID: 5468316f-19e7-4e84-8c26-54c8c47ba1d0  Channel: http-to-file  Stage: sent  Status: SENT  Time: 2026-03-17T21:22:26+08:00
+  Content: {"body":"{\"message\":\"1\",\"processedAt\":\"2026-03-17T13:22:26.281Z\",\"source\":\"http-to-file\"}","channelId":"http-to-file","contentType":"raw","correlationId":"5468316f-19e7-4e84-8c26-54c8c47ba...(truncated)
+
+ID: 5468316f-19e7-4e84-8c26-54c8c47ba1d0  Channel: http-to-file  Stage: transformed  Status: TRANSFORMED  Time: 2026-03-17T21:22:26+08:00
+  Content: {"body":"{\"message\":\"1\",\"processedAt\":\"2026-03-17T13:22:26.281Z\",\"source\":\"http-to-file\"}","channelId":"http-to-file","contentType":"raw","correlationId":"5468316f-19e7-4e84-8c26-54c8c47ba...(truncated)
+
+ID: 5468316f-19e7-4e84-8c26-54c8c47ba1d0  Channel: http-to-file  Stage: received  Status: RECEIVED  Time: 2026-03-17T21:22:26+08:00
+  Content: {"body":"{\"message\":\"1\",\"processedAt\":\"2026-03-17T11:47:09.269Z\",\"source\":\"http-to-file\"}","channelId":"http-to-file","contentType":"raw","correlationId":"5468316f-19e7-4e84-8c26-54c8c47ba...(truncated)
+
+Total: 3 messages
+```
 ### TC-027: PASS
 
 Command:

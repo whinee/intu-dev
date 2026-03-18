@@ -85,9 +85,10 @@ From now on, every time the machine is rebooted, the following command is ran:
 intu init demo --dir /tmp/intu
 ```
 
-Databases have also been set up in order to accomodate for the other test cases as well.
+Databases have also been set up in order to accommodate for the other test cases as well.
 
 ```sh
+sudo docker rm pg
 sudo docker run -d --name pg --env-file .env -p 5432:5432 postgres
 sudo docker exec -it pg psql -U intu -c "CREATE DATABASE intu_message;"
 ```
@@ -1730,7 +1731,9 @@ Output:
 }
 ```
 
-### TC-019: PASS
+### TC-019: FAIL
+
+See TC-023.
 
 Command:
 
@@ -1952,37 +1955,9 @@ Timestamp:     2026-03-17T19:47:09+08:00
 Content:
 {"body":"{\"message\":\"1\",\"processedAt\":\"2026-03-17T11:47:09.269Z\",\"source\":\"http-to-file\"}","channelId":"http-to-file","contentType":"raw","correlationId":"5468316f-19e7-4e84-8c26-54c8c47ba1d0","file":{"directory":"./output","filename":"http-to-file_5468316f-19e7-4e84-8c26-54c8c47ba1d0_20260317T194709.json"},"id":"5468316f-19e7-4e84-8c26-54c8c47ba1d0","metadata":{"destination":"file-output"},"timestamp":"2026-03-17T19:47:09.264866553+08:00","transport":"file","version":"1"}
 ```
-### TC-026: PASS
+### TC-021: FAIL
 
-Command:
-
-```sh
-cd /tmp/intu/demo
-```
-
-Output:
-
-```txt
-```
-
-Command:
-
-```sh
-'/home/lyra/systems/P01 Lyra Personal/40-49 Hardware and Software/41 Software Projects/41.31 intu/intu' dashboard --dir . --port 4000
-```
-
-Output:
-
-```txt
-Dashboard running at http://localhost:4000
-{"time":"2026-03-16T16:17:55.723208543+08:00","level":"INFO","msg":"dashboard listening","addr":"[::]:4000"}
-```
-
-Opening a browser and going to `localhost:4000` yields the following screen:
-
-![](whinee/Pasted%20image%2020260316162342.png)
-
-### TC-021: PASS
+See TC-023.
 
 Command:
 
@@ -2090,6 +2065,257 @@ ID: 5468316f-19e7-4e84-8c26-54c8c47ba1d0  Channel: http-to-file  Stage: received
 Total: 3 messages
 ```
 
+### TC-023: FAIL
+
+Command:
+
+```sh
+cd /tmp/intu/demo
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+tee /tmp/intu/demo/.env > /dev/null <<'EOF'
+# intu Environment Variables
+# Active profile (dev | prod)
+INTU_PROFILE=dev
+
+# --- Core ---
+# Used by docker-compose: postgres://postgres:postgres@postgres:5432/intu?sslmode=disable
+INTU_POSTGRES_DSN=postgres://postgres:postgres@localhost:5432/intu?sslmode=disable
+
+# --- Database ---
+
+POSTGRES_USER=intu
+POSTGRES_PASSWORD=intu
+POSTGRES_DB=intu
+
+# --- Dashboard ---
+INTU_DASHBOARD_USER=admin
+INTU_DASHBOARD_PASS=admin
+EOF
+```
+
+Output:
+
+```txt
+```
+
+
+Command:
+
+```sh
+tee /tmp/intu/demo/intu.yaml > /dev/null <<'EOF'
+runtime:
+  name: intu
+  profile: dev
+  log_level: info
+  mode: standalone
+  worker_pool: 4
+  storage:
+    driver: memory
+    postgres_dsn: postgres://intu:intu@localhost:5432/intu
+
+channels_dir: src/channels
+
+message_storage:
+  driver: postgres         # memory | postgres | s3
+  mode: full               # none | status | full
+  postgres:
+    dsn: postgres://intu:intu@localhost:5432/intu_message
+
+destinations:
+  file-output:
+    type: file
+    file:
+      directory: ./output
+      filename_pattern: "{{channelId}}_{{messageId}}_{{timestamp}}.json"
+
+  hl7-file-output:
+    type: file
+    file:
+      directory: ./output
+      filename_pattern: "{{channelId}}_{{messageId}}_{{timestamp}}.hl7"
+
+dashboard:
+  enabled: true
+  port: 3000
+  auth:
+    provider: basic
+    username: admin
+    password: admin
+
+audit:
+  enabled: true
+  destination: memory
+EOF
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+tee /tmp/intu/demo/intu.prod.yaml > /dev/null <<'EOF'
+# ============================================================================
+# intu Production Profile
+# Uncomment sections below to enable enterprise features.
+# Environment variables (${VAR}) are resolved at startup from .env or OS env.
+# ============================================================================
+
+runtime:
+  profile: prod
+  log_level: info
+  mode: standalone           # standalone | cluster
+  worker_pool: 8
+  storage:
+    driver: postgres
+    postgres_dsn: postgres://intu:intu@localhost:5432/intu
+
+# --- Message Storage ---------------------------------------------------------
+# Controls how messages are persisted globally. Channels can override per-channel.
+# Drivers: memory | postgres | s3
+# Modes: none (disabled) | status (metadata only, no payloads) | full (full payloads)
+message_storage:
+  driver: postgres
+  mode: full               # none | status (metadata only) | full (payloads + metadata)
+  postgres:
+    dsn: postgres://intu:intu@localhost:5432/intu_message
+    table_prefix: intu_
+    max_open_conns: 25
+    max_idle_conns: 5
+
+# --- Audit -------------------------------------------------------------------
+audit:
+  enabled: true
+  destination: postgres      # memory | postgres
+  events:                    # Restrict to specific events (omit for all)
+    - message.reprocess
+    - channel.deploy
+    - channel.undeploy
+    - channel.restart
+EOF
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+sudo docker rm pg
+sudo docker run -d --name pg --env-file .env -p 5432:5432 postgres
+sudo docker exec -it pg psql -U intu -c "CREATE DATABASE intu_message;"
+```
+
+Output:
+
+```
+...
+```
+
+Command:
+
+```sh
+intu serve --profile prod
+```
+
+Output:
+
+```txt
+...
+{"time":"2026-03-18T23:06:28.417436088+08:00","level":"INFO","msg":"message received","channel":"fhir-to-adt","messageId":"64fd261f-fb23-4ed6-a617-06a60293f3e9","correlationId":"64fd261f-fb23-4ed6-a617-06a60293f3e9"}
+{"time":"2026-03-18T23:06:28.483671288+08:00","level":"INFO","msg":"script executed","channel":"fhir-to-adt","function":"validate","file":"validator.ts","duration_ms":49.707}
+{"time":"2026-03-18T23:06:28.491655852+08:00","level":"ERROR","msg":"FHIR handler error","error":"pipeline execute: validator: call validate in dist/src/channels/fhir-to-adt/validator.js: Invalid input: expected a JSON object"}
+```
+
+Command:
+
+```sh
+curl -X POST http://localhost:8082/fhir/r4/Patient
+```
+
+Output:
+
+```txt
+{"issue":[{"code":"processing","diagnostics":"Invalid input: expected a JSON object","severity":"error"}],"resourceType":"OperationOutcome"}
+```
+
+Command:
+
+```sh
+intu message list --dir . --channel fhir-to-adt
+```
+
+Output:
+
+```txt
+ID: 64fd261f-fb23-4ed6-a617-06a60293f3e9  Channel: fhir-to-adt  Stage: error  Status: ERROR  Time: 2026-03-18T23:06:28+08:00
+  Content: {"body":"","channelId":"fhir-to-adt","contentType":"fhir_r4","correlationId":"64fd261f-fb23-4ed6-a617-06a60293f3e9","http":{"headers":{"Accept":"*/*","User-Agent":"curl/8.11.1"},"method":"POST","pathP...(truncated)
+
+ID: 64fd261f-fb23-4ed6-a617-06a60293f3e9  Channel: fhir-to-adt  Stage: received  Status: RECEIVED  Time: 2026-03-18T23:06:28+08:00
+  Content: {"body":"","channelId":"fhir-to-adt","contentType":"fhir_r4","correlationId":"64fd261f-fb23-4ed6-a617-06a60293f3e9","http":{"headers":{"Accept":"*/*","User-Agent":"curl/8.11.1"},"method":"POST","pathP...(truncated)
+
+Total: 2 messages
+```
+
+Command:
+
+```sh
+intu message list --dir . --channel fhir-to-adt --status error
+```
+
+Output:
+
+```txt
+No messages found.
+```
+
+
+```sh
+intu message count --dir . --channel fhir-to-adt --status error
+```
+
+Output:
+
+```txt
+0
+```
+
+Command:
+
+```sh
+intu reprocess batch fhir-to-adt --status error --dir . --dry-run
+```
+
+Output:
+
+```txt
+No messages found matching criteria.
+```
+
+Expectation:
+
+For the error messages to show up, be listed, counted, and reprocessed.
+
+Reality:
+
+None of the error messages showed up.
+
+Conclusion:
+
+Fail TC-019, TC-021, and TC-023
 ### TC-024: PASS
 
 Command:
@@ -2150,6 +2376,35 @@ Output:
 ```txt
 Pruned 12 messages for all channels before 2026-03-18
 ```
+### TC-026: PASS
+
+Command:
+
+```sh
+cd /tmp/intu/demo
+```
+
+Output:
+
+```txt
+```
+
+Command:
+
+```sh
+'/home/lyra/systems/P01 Lyra Personal/40-49 Hardware and Software/41 Software Projects/41.31 intu/intu' dashboard --dir . --port 4000
+```
+
+Output:
+
+```txt
+Dashboard running at http://localhost:4000
+{"time":"2026-03-16T16:17:55.723208543+08:00","level":"INFO","msg":"dashboard listening","addr":"[::]:4000"}
+```
+
+Opening a browser and going to `localhost:4000` yields the following screen:
+
+![](whinee/Pasted%20image%2020260316162342.png)
 
 ### TC-027: PASS
 
